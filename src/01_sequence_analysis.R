@@ -11,7 +11,11 @@ library(PST)
 library(WeightedCluster)
 library(TraMineRextras)
 library(xtable)
-source("reports/paper-work-lifecourse/src/utils.R")
+
+# relative directory of the paper
+path_paper = "reports/paper-work-lifecourse/"
+
+source(paste0(path_paper, "src/utils.R"))
 
 # all missing ids
 all_missing_ids = c(10016, 10083, 10097, 10248, 20020, 20120, 20191,
@@ -140,7 +144,7 @@ seq_data_jobs = create_sequences(
     columns = 3:13
   )
 
-savepdf("reports/paper-work-lifecourse/output/seq_dist_jobs")
+savepdf(paste0(path_paper, "output/seq_dist_jobs"))
     seqdplot(seq_data_jobs, cex.legend = 0.6,
              with.legend = "auto" )
 dev.off()
@@ -174,11 +178,12 @@ plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 # create plots
 cl_ind = create_clusters(seq_data_ind, nclusters = 3:6)
 create_plots(seq_data_ind, cl_ind,
-             "reports/paper-work-lifecourse/output/seq_job_all_clusters",
+             paste0(path_paper, "output/seq_job_all_clusters"),
              order = "sql")
 
 cl_ind_4 = create_clusters(seq_data_ind, nclusters = 4)
-create_plots(seq_data_ind, cl_ind_4, "reports/paper-work-lifecourse/output/seq_job_4_clusters", order = "sql")
+create_plots(seq_data_ind, cl_ind_4,
+             paste0(path_paper, "output/seq_job_4_clusters"), order = "sql")
 
 cluster_membership[, cluster_job_ind_4 := cl_ind_4[["c4"]][[1]]]
 
@@ -205,7 +210,7 @@ seq_data_jobs_crime = create_sequences(data = dat,
                                            "Dep formal", "Dep formal-Crime"),
                             columns = 3:13)
 
-savepdf("reports/paper-work-lifecourse/output/seq_dist_jobs_crime")
+savepdf(paste0(path_paper, "output/seq_dist_jobs_crime"))
     seqdplot(seq_data_jobs_crime, cex.legend=0.6,
              with.legend = "right")
 dev.off()
@@ -248,12 +253,12 @@ plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 # create plots
 cl_jobv1 = create_clusters(seq_data_jobv1, nclusters = 3:6)
 create_plots(seq_data_jobv1, cl_jobv1,
-             "reports/paper-work-lifecourse/output/seq_jobv1_all_clusters",
+             paste0(path_paper, "output/seq_jobv1_all_clusters"),
              order = "sql")
 
 cl_jobv1_4 = create_clusters(seq_data_jobv1, nclusters = 4)
 create_plots(seq_data_jobv1, cl_jobv1_4,
-             "reports/paper-work-lifecourse/output/seq_jobv1_4_clusters",
+             paste0(path_paper, "output/seq_jobv1_4_clusters"),
              order = "sql")
 
 cluster_membership[, cluster_jobv1_4 := cl_jobv1_4[["c4"]][[1]]]
@@ -295,13 +300,13 @@ plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 # create plots
 cl_jobv2 = create_clusters(seq_data_jobv2, nclusters = 3:6)
 create_plots(seq_data_jobv2, cl_jobv2,
-             "reports/paper-work-lifecourse/output/seq_jobv2_all_clusters",
+             paste0(path_paper, "output/seq_jobv2_all_clusters"),
              order = "sql")
 
 cl_jobv2_4 = create_clusters(seq_data_jobv2, nclusters = 4)
 
 create_plots(seq_data_jobv2, cl_jobv2_4,
-             "reports/paper-work-lifecourse/output/seq_jobv2_4_clusters",
+             paste0(path_paper, "output/seq_jobv2_4_clusters"),
              order = "sql")
 
 cluster_membership[, cluster_jobv2_4 := cl_jobv2_4[["c4"]][[1]]]
@@ -314,7 +319,7 @@ cluster_membership[, cluster_jobv2_4 := cl_jobv2_4[["c4"]][[1]]]
 
 # save cluster membership
 fwrite(cluster_membership,
-       file = "reports/paper-work-lifecourse/output/cluster_membership.csv",
+       file = paste0(path_paper, "output/cluster_membership.csv"),
        row.names = FALSE)
 
 

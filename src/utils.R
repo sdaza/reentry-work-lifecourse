@@ -7,9 +7,12 @@
 
 any_values = function(x, values) as.numeric(any(x %in% values, na.rm = TRUE))
 
+
 amount_higher_zero = function(x, values) as.numeric(any(x > values))
 
+
 reverse = function(x) (max(x, na.rm = TRUE) + 1) - x
+
 
 renameColumns = function(dat, hash) {
     oldnames = as.vector(hash::keys(hash))
@@ -22,6 +25,7 @@ renameColumns = function(dat, hash) {
     setnames(dat, oldnames, newnames)
 }
 
+
 flag_positive_values = function(x) {
     x = na.omit(x)
     return( ifelse(
@@ -31,33 +35,35 @@ flag_positive_values = function(x) {
     )
 }
 
-lookvar  <- function(dat, varnames) {
-    n  <- names(dat)
-    nn  <- list()
+
+lookvar  = function(dat, varnames) {
+    n  = names(dat)
+    nn  = list()
         for (i in 1:length(varnames)) {
-            nn[[i]]  <- grep(varnames[i],n)
+            nn[[i]]  = grep(varnames[i],n)
         }
 
-    nn  <- unlist(nn)
+    nn  = unlist(nn)
 
     if ( length(nn) >0 )
         {
-         r  <- n[nn]
+         r  = n[nn]
          return(r)
         }
     else
     { return("No variables found")}
 }
 
+
 toFirstDayOfWeek = function(date) {
     return(date - (wday(date) - 2))
 }
 
-# get first values
 
 getFirstValue = function(x) {
     return(head(na.omit(x), 1))
 }
+
 
 getMax = function(x) {
     x = na.omit(x)
@@ -68,6 +74,7 @@ getMax = function(x) {
     }
 }
 
+
 getMin = function(x) {
     x = na.omit(x)
     if (length(x) == 0) {
@@ -77,17 +84,46 @@ getMin = function(x) {
     }
 }
 
+
 table = function (...) base::table(..., useNA = 'ifany')
+
 
 cor = function (...) stats::cor(..., use = "complete.obs")
 
-savepdf <- function(file, width=16, height=10)
-{
-  fname <- paste0(file, ".pdf")
-  pdf(fname, width=width/2.54, height=height/2.54,
-      pointsize=10)
-  par(mgp=c(2.2,0.45,0), tcl=-0.4, mar=c(3.3,3.6,1.1,1.1))
+
+savepdf = function(file, width=16, height=10) {
+
+    fname = paste0(file, ".pdf")
+    pdf(fname, width=width/2.54, height=height/2.54,
+        pointsize=10)
+    par(mgp=c(2.2,0.45,0), tcl=-0.4, mar=c(3.3,3.6,1.1,1.1))
+
 }
+
+
+countmis  = function(dat, vars = NULL, pct = TRUE, exclude.complete = TRUE) {
+
+    if (is.null(vars)) {
+        vars = names(dat)
+    }
+
+    mis = sort(sapply(dat[, vars, with = FALSE],
+                       function(x) sum(is.na(x))), decreasing = TRUE)
+
+    if (exclude.complete == TRUE) {
+        mis = mis[ mis > 0]
+    }
+
+    if (pct == FALSE)
+      { return(mis) }
+
+    else if ( pct == TRUE ) {
+        return( round(mis / nrow(dat), 3))
+    }
+
+    return(mis)
+}
+
 
 create_sequences = function(data, seq_variable, seq_labels, columns) {
     temp = data.table::copy(data[, c("reg_folio",
@@ -101,6 +137,7 @@ create_sequences = function(data, seq_variable, seq_labels, columns) {
     s1i = impute(m1, s1, method = "prob")
     return(s1i)
 }
+
 
 create_clusters = function(seq_data, method = "HAM", nclusters = 2:5) {
 
@@ -123,6 +160,7 @@ create_clusters = function(seq_data, method = "HAM", nclusters = 2:5) {
     }
     return(list_clusters)
 }
+
 
 create_plots = function(seq_data, cl, filepath, order = "from.start",
                         method_distance = "HAM") {

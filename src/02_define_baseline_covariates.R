@@ -7,7 +7,11 @@
 
 library(data.table)
 library(lubridate)
-source("reports/paper-work-lifecourse/src/utils.R")
+
+# relative directory of the paper
+path_paper = "reports/paper-work-lifecourse/"
+
+source(paste0(path_paper, "src/utils.R"))
 
 # baseline variables
 
@@ -38,6 +42,10 @@ table(bs$previous_partner)
 # primary school dropout
 bs[, only_primary := ifelse(hdv_7 <= 8, 1, 0)]
 table(bs$only_primary)
+
+bs[hdv_7 %in% 0:11, h_school := 0]
+bs[hdv_7 > 11, h_school := 1]
+table(bs$h_school)
 
 bs[hdv_7 == 0, edu := 'none']
 bs[hdv_7 %in% 1:7, edu := 'primary incomplete']
@@ -199,7 +207,7 @@ bs[, family_conflict := scale(apply(.SD, 1, mean, na.rm = TRUE)),
 
 # select columns
 bs = bs[, .(reg_folio, class, age, edu,
-            only_primary, any_previous_work,
+            only_primary, h_school, any_previous_work,
             nchildren, any_children, crime, early_crime,
             self_efficacy, desire_change, previous_partner,
             previous_sentences, mental_health,
@@ -212,5 +220,5 @@ cvars = c('age', 'sentence_length', 'nchildren', 'previous_sentences')
 bs[, paste0('c_', cvars) := lapply(.SD, scale, scale=FALSE), .SDcols = cvars]
 
 # save data.table
-saveRDS(bs, "reports/paper-work-lifecourse/output/baseline_covariates.rd")
+saveRDS(bs, file = paste0(path_paper, "output/baseline_covariates.rd"))
 
