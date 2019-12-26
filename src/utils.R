@@ -1,7 +1,15 @@
-##########################
+#############################################
 # utility functions
+# reentry work paper
 # author: sebastian daza
-##########################
+#############################################
+
+
+any_values = function(x, values) as.numeric(any(x %in% values, na.rm = TRUE))
+
+amount_higher_zero = function(x, values) as.numeric(any(x > values))
+
+reverse = function(x) (max(x, na.rm = TRUE) + 1) - x
 
 renameColumns = function(dat, hash) {
     oldnames = as.vector(hash::keys(hash))
@@ -108,10 +116,36 @@ create_clusters = function(seq_data, method = "HAM", nclusters = 2:5) {
                                                  measure="ASWw"))
 
         list_clusters[[paste0("c", i)]] = list(data.table(c = get(paste0("c", i)))[
-                                                         , cc := .GRP, c][
+                                                         , cc := paste0("Cluster ", .GRP), c][
                                                          , cc],
                                                get(paste0("sil", i))
                                                )
     }
     return(list_clusters)
 }
+
+create_plots = function(seq_data, cl, filepath, order = "from.start",
+                        method_distance = "HAM") {
+
+    distance = seqdist(seq_data, method = method_distance)
+
+    savepdf(filepath)
+
+    for (i in names(cl)) {
+        clusters = cl[[i]][[1]]
+        ifelse(order == "from.start",
+               seqIplot(seq_data, group = clusters, sortv = "from.start"),
+               seqIplot(seq_data, group = clusters, sortv = cl[[i]][2][[1]])
+               )
+        seqdplot(seq_data, group = clusters)
+        seqmtplot(seq_data, group = clusters)
+        seqrplot(seq_data, group = clusters,
+                 dist.matrix = distance, border = NA)
+        # seqHtplot(seq_data, group = clusters)
+        TraMineRextras::seqplot.tentrop(seq_data, group = clusters)
+    }
+
+    dev.off()
+
+}
+

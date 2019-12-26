@@ -1,7 +1,8 @@
-#####################################################
-# example sequence analysis
-# author: sebastian daza & ignacio borquez
-#####################################################
+#############################################
+# sequence analysis
+# reentry work paper
+# author: sebastian daza
+#############################################
 
 
 # libraries
@@ -9,8 +10,8 @@ library(data.table)
 library(PST)
 library(WeightedCluster)
 library(TraMineRextras)
-setwd("C:/Users/borqu/Documents/reentry-data-pipeline/")
-source("R/calendario/utils.R")
+library(xtable)
+source("reports/paper-work-lifecourse/src/utils.R")
 
 # all missing ids
 all_missing_ids = c(10016, 10083, 10097, 10248, 20020, 20120, 20191,
@@ -18,7 +19,7 @@ all_missing_ids = c(10016, 10083, 10097, 10248, 20020, 20120, 20191,
                     50131, 50163, 50242, 50245)
 
 # read data
-dat = fread("R/calendario/output/calendar_11_months.csv")
+dat = fread("output/bases/calendario_11_meses.csv")
 class = fread("data/clases_latentes.csv")
 dat = dat[reg_muestra == 1][!reg_folio %in% all_missing_ids]
 
@@ -31,9 +32,11 @@ dat = merge(dat, class[, .(reg_folio, class)],
 print(paste0("Number of valid cases: ",
              length(unique(dat$reg_folio))))
 
+# create data.table object to save cluster membership
 cluster_membership = data.table::copy(unique(dat[, .(reg_folio)]))
 
 # job
+
 # 1 = 0 = cuenta propia informal
 # 2 = 1 = cuenta propia formal
 # 3 = 10 = dependiente informal
@@ -105,7 +108,7 @@ dat[reg_folio == sample(ids, 1),
 # 4 = 11 = dependiente formal
 
 # recode combinations
-# impute when there is at least one valid value
+# impute with zero when there is at least one valid value
 dat[, jobtype_valid := apply(.SD, 1, function(x) any(!is.na(x))),
     .SDcols = new_work_columns]
 dat[, (new_work_columns) := lapply(.SD,
@@ -137,7 +140,7 @@ seq_data_jobs = create_sequences(
     columns = 3:13
   )
 
-savepdf("R/calendario/output/seq_dist_jobs")
+savepdf("reports/paper-work-lifecourse/output/seq_dist_jobs")
     seqdplot(seq_data_jobs, cex.legend = 0.6,
              with.legend = "auto" )
 dev.off()
@@ -151,16 +154,19 @@ dat[njobtype == 0, independent_job := 0]
 
 table(dat$independent_job)
 
-seq_data_ind = create_sequences(data = dat,
-                            seq_variable = "independent_job",
-                            seq_labels = c("None", "Independent",
-                                           "Dependent informal",
-                                           "Dependent formal"),
-                            columns = 3:13)
+seq_data_ind = create_sequences(
+    data = dat,
+    seq_variable = "independent_job",
+    seq_labels = c("None", "Independent",
+                   "Dependent informal",
+                   "Dependent formal"),
+    columns = 3:13)
 
 # compare clusters solutions
 seq_data_ind_distance = seqdist(seq_data_ind, method = "HAM")
 benchmark_clusters = wcKMedRange(seq_data_ind_distance, 2:6)
+
+xtable(benchmark_clusters$stats)
 
 # 4 clusters seems the best solution
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
@@ -168,11 +174,11 @@ plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 # create plots
 cl_ind = create_clusters(seq_data_ind, nclusters = 3:6)
 create_plots(seq_data_ind, cl_ind,
-             "R/calendario/output/seq_job_all_clusters",
+             "reports/paper-work-lifecourse/output/seq_job_all_clusters",
              order = "sql")
 
 cl_ind_4 = create_clusters(seq_data_ind, nclusters = 4)
-create_plots(seq_data_ind, cl_ind_4, "R/calendario/output/seq_job_4_clusters", order = "sql")
+create_plots(seq_data_ind, cl_ind_4, "reports/paper-work-lifecourse/output/seq_job_4_clusters", order = "sql")
 
 cluster_membership[, cluster_job_ind_4 := cl_ind_4[["c4"]][[1]]]
 
@@ -199,7 +205,7 @@ seq_data_jobs_crime = create_sequences(data = dat,
                                            "Dep formal", "Dep formal-Crime"),
                             columns = 3:13)
 
-savepdf("R/calendario/output/seq_dist_jobs_crime")
+savepdf("reports/paper-work-lifecourse/output/seq_dist_jobs_crime")
     seqdplot(seq_data_jobs_crime, cex.legend=0.6,
              with.legend = "right")
 dev.off()
@@ -242,11 +248,13 @@ plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 # create plots
 cl_jobv1 = create_clusters(seq_data_jobv1, nclusters = 3:6)
 create_plots(seq_data_jobv1, cl_jobv1,
-             "R/calendario/output/seq_jobv1_all_clusters",
+             "reports/paper-work-lifecourse/output/seq_jobv1_all_clusters",
              order = "sql")
 
 cl_jobv1_4 = create_clusters(seq_data_jobv1, nclusters = 4)
-create_plots(seq_data_jobv1, cl_jobv1_4, "R/calendario/output/seq_jobv1_4_clusters", order = "sql")
+create_plots(seq_data_jobv1, cl_jobv1_4,
+             "reports/paper-work-lifecourse/output/seq_jobv1_4_clusters",
+             order = "sql")
 
 cluster_membership[, cluster_jobv1_4 := cl_jobv1_4[["c4"]][[1]]]
 
@@ -287,17 +295,26 @@ plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 # create plots
 cl_jobv2 = create_clusters(seq_data_jobv2, nclusters = 3:6)
 create_plots(seq_data_jobv2, cl_jobv2,
-             "R/calendario/output/seq_jobv2_all_clusters",
+             "reports/paper-work-lifecourse/output/seq_jobv2_all_clusters",
              order = "sql")
 
 cl_jobv2_4 = create_clusters(seq_data_jobv2, nclusters = 4)
-create_plots(seq_data_jobv2, cl_jobv2_4, "R/calendario/output/seq_jobv2_4_clusters", order = "sql")
+
+create_plots(seq_data_jobv2, cl_jobv2_4,
+             "reports/paper-work-lifecourse/output/seq_jobv2_4_clusters",
+             order = "sql")
 
 cluster_membership[, cluster_jobv2_4 := cl_jobv2_4[["c4"]][[1]]]
 
-## State distribution over time
-by(seq_data_jobv2, df_models$cl_jobv2_4, seqstatd)
+# ## state distribution over time
+# by(seq_data_jobv2, df_models$cl_jobv2_4, seqstatd)
 
-seqstatd(seq_data_jobs_crime)
-seqstatd(seq_data_jobs, group = df_models$cl_jobv2_4)
+# seqstatd(seq_data_jobs_crime)
+# seqstatd(seq_data_jobs, group = df_models$cl_jobv2_4)
+
+# save cluster membership
+fwrite(cluster_membership,
+       file = "reports/paper-work-lifecourse/output/cluster_membership.csv",
+       row.names = FALSE)
+
 
