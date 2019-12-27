@@ -222,3 +222,4 @@ bs[, paste0('c_', cvars) := lapply(.SD, scale, scale=FALSE), .SDcols = cvars]
 # save data.table
 saveRDS(bs, file = paste0(path_paper, "output/baseline_covariates.rd"))
 
+

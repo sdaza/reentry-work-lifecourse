@@ -172,18 +172,46 @@ create_plots = function(seq_data, cl, filepath, order = "from.start",
     for (i in names(cl)) {
         clusters = cl[[i]][[1]]
         ifelse(order == "from.start",
-               seqIplot(seq_data, group = clusters, sortv = "from.start"),
-               seqIplot(seq_data, group = clusters, sortv = cl[[i]][2][[1]])
+               seqIplot(seq_data, group = group.p(clusters), sortv = "from.start"),
+               seqIplot(seq_data, group = group.p(clusters), sortv = cl[[i]][2][[1]])
                )
-        seqdplot(seq_data, group = clusters)
-        seqmtplot(seq_data, group = clusters)
-        seqrplot(seq_data, group = clusters,
+        seqdplot(seq_data, group = group.p(clusters))
+        seqmtplot(seq_data, group = group.p(clusters))
+        seqrplot(seq_data, group = group.p(clusters),
                  dist.matrix = distance, border = NA)
         # seqHtplot(seq_data, group = clusters)
-        TraMineRextras::seqplot.tentrop(seq_data, group = clusters)
+        TraMineRextras::seqplot.tentrop(seq_data, group = group.p(clusters))
     }
 
     dev.off()
 
+}
+
+
+add_notes_table = function(tab, caption, label, align,
+                           comment = "",
+                           fontsize = "footnotesize",
+                           arraystretch = 1.3,
+                           tabcolsep = 25,
+                           filename = "") {
+
+    ptcl = print(xtable(tab, caption = caption, label = label, align = align),
+             caption.placement = "top",
+             table.placement = "htp")
+    ptcl = gsub("begin\\{table\\}\\[htp\\]\\n",
+                paste0("begin\\{table\\}\\[htp\\]\\\n\\\\", fontsize,
+                       "\\\n\\\\setlength\\{\\\\tabcolsep\\}\\{", tabcolsep,
+                       "pt\\}\\\n\\\\renewcommand\\{\\\\arraystretch\\}\\{",
+                       arraystretch,
+                       "\\}\\\n\\\\begin\\{threeparttable\\}\\\n"),
+                 ptcl)
+
+    ptcl = gsub("end\\{tabular\\}\\n",
+                paste0("end\\{tabular\\}\\\n\\\\begin{tablenotes}\\\n\\\\scriptsize\\\n\\\\item ",
+                       comment,
+                       "\\\n\\\\end{tablenotes}\\\n\\\\end{threeparttable}\\\n"),
+                ptcl)
+
+    cat(ptcl, file = filename)
 }
 

@@ -27,14 +27,16 @@ dat = fread("output/bases/calendario_11_meses.csv")
 class = fread("data/clases_latentes.csv")
 dat = dat[reg_muestra == 1][!reg_folio %in% all_missing_ids]
 
+
+
 setnames(class, c("FOLIO_2", "predclass3G"),
          c("reg_folio", "class"))
 
 dat = merge(dat, class[, .(reg_folio, class)],
             by = "reg_folio", x.all = TRUE)
 
-print(paste0("Number of valid cases: ",
-             length(unique(dat$reg_folio))))
+n = length(unique(dat$reg_folio))
+print(paste0("Number of valid cases: ", n))
 
 # create data.table object to save cluster membership
 cluster_membership = data.table::copy(unique(dat[, .(reg_folio)]))
@@ -100,7 +102,6 @@ dat[reg_folio == sample(ids, 1),
     c("reg_folio", "month_index",
       new_work_columns), with = FALSE]
 
-
 # work
 ids = unique(dat$reg_folio)
 dat[reg_folio == sample(ids, 1),
@@ -149,6 +150,34 @@ savepdf(paste0(path_paper, "output/seq_dist_jobs"))
              with.legend = "auto" )
 dev.off()
 
+# transition rates table
+states_in = paste0("-> ", c("None", "Ind informal",
+              "Ind formal",
+              "Dep informal",
+              "Dep formal"))
+states_out = paste0(c("None", "Ind informal",
+              "Ind formal",
+              "Dep informal",
+              "Dep formal"), " ->")
+
+
+jobs.trate = seqtrate(seq_data_jobs)
+rownames(jobs.trate) = states_out
+colnames(jobs.trate) = states_in
+
+caption = paste0("Transition rates jobs (N = ", n, ")")
+label = "tab:transition_rates_jobs"
+comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. Ind = Independent, Dep = Dependent."
+
+add_notes_table(jobs.trate,
+                align = "lccccc",
+                tabcolsep = 10,
+                caption = caption,
+                label = label,
+                comment = comment,
+                filename = paste0(path_paper, "output/transtion_rates_job.tex")
+                )
+
 # independent job
 dat[njobtype == 1, independent_job := 1]
 dat[njobtype == 2, independent_job := 1]
@@ -158,7 +187,7 @@ dat[njobtype == 0, independent_job := 0]
 
 table(dat$independent_job)
 
-seq_data_ind = create_sequences(
+seq_data_jobs_ind = create_sequences(
     data = dat,
     seq_variable = "independent_job",
     seq_labels = c("None", "Independent",
@@ -167,25 +196,41 @@ seq_data_ind = create_sequences(
     columns = 3:13)
 
 # compare clusters solutions
-seq_data_ind_distance = seqdist(seq_data_ind, method = "HAM")
-benchmark_clusters = wcKMedRange(seq_data_ind_distance, 2:6)
+seq_data_jobs_ind_distance = seqdist(seq_data_jobs_ind, method = "HAM")
+benchmark_clusters = wcKMedRange(seq_data_jobs_ind_distance, 2:6)
 
-xtable(benchmark_clusters$stats)
+# create benchmark table for jobs
+tcl = benchmark_clusters$stats
+tcl = tcl[, c("ASW", "HG", "PBC")]
+row.names(tcl) = paste0(2:6, " clusters")
+
+caption = paste0("Employement quality measures for cluster solutions (N = ", n, ")")
+label = "tab:quality_clusters_job"
+comment = "ASW = Average Silhouette width, HG = Hubert's Gamma, PBC = Point Biserial Correlation."
+
+add_notes_table(tcl,
+                align = "lccc",
+                tabcolsep = 35,
+                caption = caption,
+                label = label,
+                comment = comment,
+                filename = paste0(path_paper, "output/cluster_quality_job.tex")
+                )
 
 # 4 clusters seems the best solution
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 
 # create plots
-cl_ind = create_clusters(seq_data_ind, nclusters = 3:6)
-create_plots(seq_data_ind, cl_ind,
+cl_jobs_ind = create_clusters(seq_data_jobs_ind, nclusters = 3:6)
+create_plots(seq_data_jobs_ind, cl_jobs_ind,
              paste0(path_paper, "output/seq_job_all_clusters"),
              order = "sql")
 
-cl_ind_4 = create_clusters(seq_data_ind, nclusters = 4)
-create_plots(seq_data_ind, cl_ind_4,
+cl_jobs_ind_4 = create_clusters(seq_data_jobs_ind, nclusters = 4)
+create_plots(seq_data_jobs_ind, cl_jobs_ind_4,
              paste0(path_paper, "output/seq_job_4_clusters"), order = "sql")
 
-cluster_membership[, cluster_job_ind_4 := cl_ind_4[["c4"]][[1]]]
+cluster_membership[, cluster_job_ind_4 := cl_jobs_ind_4[["c4"]][[1]]]
 
 # add crime
 dat[, work_crime := independent_job]
@@ -236,7 +281,7 @@ dat[work_crime_1 == 21, nwork_crime_1 := 5]
 table(dat$nwork_crime_1)
 
 # trying to simplify labels
-seq_data_jobv1 = create_sequences(data = dat,
+seq_data_job_crime_v1 = create_sequences(data = dat,
                                 seq_variable = "nwork_crime_1",
                                 seq_labels = c("None", "Crime",
                                                "Other jobs", "Other jobs-Crime",
@@ -244,24 +289,42 @@ seq_data_jobv1 = create_sequences(data = dat,
                                 columns = 3:13)
 
 # compare clusters solutions
-seq_data_jobv1_distance = seqdist(seq_data_jobv1, method = "HAM")
-benchmark_clusters = wcKMedRange(seq_data_jobv1_distance, 2:6)
+seq_data_job_crime_v1_distance = seqdist(seq_data_job_crime_v1, method = "HAM")
+benchmark_clusters = wcKMedRange(seq_data_job_crime_v1_distance, 2:6)
+
+# create table job
+tcl = benchmark_clusters$stats
+tcl = tcl[, c("ASW", "HG", "PBC")]
+row.names(tcl) = paste0(2:6, " clusters")
+
+caption = paste0("Employement and crime quality measures for cluster solutions (N = ", n, ")")
+label = "tab:quality_clusters_job_crime"
+comment = "ASW = Average Silhouette width, HG = Hubert's Gamma, PBC = Point Biserial Correlation."
+
+add_notes_table(tcl,
+                align = "lccc",
+                tabcolsep = 35,
+                caption = caption,
+                label = label,
+                comment = comment,
+                filename = paste0(path_paper, "output/cluster_quality_job_crime.tex")
+                )
 
 # 4 clusters seems the best solution
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 
 # create plots
-cl_jobv1 = create_clusters(seq_data_jobv1, nclusters = 3:6)
-create_plots(seq_data_jobv1, cl_jobv1,
+cl_job_crime_v1 = create_clusters(seq_data_job_crime_v1, nclusters = 3:6)
+create_plots(seq_data_job_crime_v1, cl_job_crime_v1,
              paste0(path_paper, "output/seq_jobv1_all_clusters"),
              order = "sql")
 
-cl_jobv1_4 = create_clusters(seq_data_jobv1, nclusters = 4)
-create_plots(seq_data_jobv1, cl_jobv1_4,
+cl_job_crime_v1_4 = create_clusters(seq_data_job_crime_v1, nclusters = 4)
+create_plots(seq_data_job_crime_v1, cl_job_crime_v1_4,
              paste0(path_paper, "output/seq_jobv1_4_clusters"),
              order = "sql")
 
-cluster_membership[, cluster_jobv1_4 := cl_jobv1_4[["c4"]][[1]]]
+cluster_membership[, cluster_jobv1_4 := cl_job_crime_v1_4[["c4"]][[1]]]
 
 # crime and dependent formal + dependent informal
 dat[njobtype == 1, type_job_2 := 1]
@@ -283,7 +346,7 @@ dat[work_crime_2 == 20, nwork_crime_2 := 4]
 dat[work_crime_2 == 21, nwork_crime_2 := 5]
 table(dat$nwork_crime_2)
 
-seq_data_jobv2 = create_sequences(data = dat,
+seq_data_job_crime_v2 = create_sequences(data = dat,
                                   seq_variable = "nwork_crime_2",
                                   seq_labels = c("None", "Crime",
                                                  "Independent", "Independent-Crime",
@@ -291,35 +354,60 @@ seq_data_jobv2 = create_sequences(data = dat,
                                   columns = 3:13)
 
 # compare clusters solutions
-seq_data_jobv2_distance = seqdist(seq_data_jobv2, method = "HAM")
-benchmark_clusters = wcKMedRange(seq_data_jobv2_distance, 2:6)
+seq_data_job_crime_v2_distance = seqdist(seq_data_job_crime_v2, method = "HAM")
+benchmark_clusters = wcKMedRange(seq_data_job_crime_v2_distance, 2:6)
 
 # 4 clusters seems the best solution
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 
+# create table
+
 # create plots
-cl_jobv2 = create_clusters(seq_data_jobv2, nclusters = 3:6)
-create_plots(seq_data_jobv2, cl_jobv2,
+cl_job_crime_v2 = create_clusters(seq_data_job_crime_v2, nclusters = 3:6)
+create_plots(seq_data_job_crime_v2, cl_job_crime_v2,
              paste0(path_paper, "output/seq_jobv2_all_clusters"),
              order = "sql")
 
-cl_jobv2_4 = create_clusters(seq_data_jobv2, nclusters = 4)
+cl_job_crime_v2_4 = create_clusters(seq_data_job_crime_v2, nclusters = 4)
 
-create_plots(seq_data_jobv2, cl_jobv2_4,
+create_plots(seq_data_job_crime_v2, cl_job_crime_v2_4,
              paste0(path_paper, "output/seq_jobv2_4_clusters"),
              order = "sql")
 
-cluster_membership[, cluster_jobv2_4 := cl_jobv2_4[["c4"]][[1]]]
+cluster_membership[, cluster_jobv2_4 := cl_job_crime_v2_4[["c4"]][[1]]]
 
-# ## state distribution over time
-# by(seq_data_jobv2, df_models$cl_jobv2_4, seqstatd)
 
-# seqstatd(seq_data_jobs_crime)
-# seqstatd(seq_data_jobs, group = df_models$cl_jobv2_4)
+# transition rates table
+states_in = paste0("-> ", c("None", "Crime","Ind", "Ind-Crime",
+                            "Dep", "Dep-Crime"))
+states_out = paste0(c("None", "Crime","Ind", "Ind-Crime",
+                            "Dep", "Dep-Crime"), " ->")
+
+jobs_crime.trate = seqtrate(seq_data_job_crime_v2)
+rownames(jobs_crime.trate) = states_out
+colnames(jobs_crime.trate) = states_in
+
+caption = paste0("Transition rates jobs-crime (N = ", n, ")")
+label = "tab:transition_rates_jobs_crime"
+comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. Ind = independent, Dep = Dependent."
+
+add_notes_table(jobs_crime.trate,
+                align = "lcccccc",
+                tabcolsep = 10,
+                caption = caption,
+                label = label,
+                comment = comment,
+                filename = paste0(path_paper, "output/transtion_rates_job_crime.tex")
+                )
+
 
 # save cluster membership
 fwrite(cluster_membership,
        file = paste0(path_paper, "output/cluster_membership.csv"),
        row.names = FALSE)
 
-
+# save sequence data
+saveRDS(seq_data_jobs_ind, file = paste0(path_paper, "output/seq_data_job.rd"))
+saveRDS(seq_data_jobs_ind_distance, file = paste0(path_paper, "output/seq_data_job_distance.rd"))
+saveRDS(seq_data_job_crime_v2, file = paste0(path_paper, "output/seq_data_job_crime_v2.rd"))
+saveRDS(seq_data_job_crime_v2_distance, file = paste0(path_paper, "output/seq_data_job_crime_v2_distance.rd"))
