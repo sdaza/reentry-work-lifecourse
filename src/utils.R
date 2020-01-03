@@ -127,8 +127,7 @@ countmis  = function(dat, vars = NULL, pct = TRUE, exclude.complete = TRUE) {
 
 create_sequences = function(data, seq_variable, seq_labels, columns) {
     temp = data.table::copy(data[, c("reg_folio",
-                         "month_index", "class", seq_variable), with = FALSE])
-    print(names(temp))
+                                 "month_index", "class", seq_variable), with = FALSE])
     temp = dcast(temp, reg_folio + class ~ month_index,
                  value.var = seq_variable)
     s1 = seqdef(temp, columns, right = NA,
@@ -190,6 +189,7 @@ create_plots = function(seq_data, cl, filepath, order = "from.start",
 
 add_notes_table = function(tab, caption, label, align,
                            comment = "",
+                           floating.environment = "table",
                            fontsize = "footnotesize",
                            arraystretch = 1.3,
                            tabcolsep = 25,
@@ -197,6 +197,7 @@ add_notes_table = function(tab, caption, label, align,
 
     ptcl = print(xtable(tab, caption = caption, label = label, align = align),
              caption.placement = "top",
+             floating.environment = floating.environment,
              table.placement = "htp")
     ptcl = gsub("begin\\{table\\}\\[htp\\]\\n",
                 paste0("begin\\{table\\}\\[htp\\]\\\n\\\\", fontsize,

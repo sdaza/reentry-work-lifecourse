@@ -9,6 +9,8 @@
 library(texreg)
 library(mfx)
 library(TraMineR)
+library(PST)
+library(xtable)
 
 # relative directory of the paper
 path_paper = "reports/paper-work-lifecourse/"
@@ -16,9 +18,14 @@ source(paste0(path_paper, "src/utils.R"))
 
 # load data
 covs = readRDS(paste0(path_paper, "output/baseline_covariates.rd"))
+cal_covs = readRDS(paste0(path_paper, "output/calendar_covs.rd"))
+
+
 clusters = fread(paste0(path_paper, "output/cluster_membership.csv"))
 dat = merge(covs, clusters, by = "reg_folio")
-dim(dat)
+dat = merge(dat, cal_covs, by = "reg_folio")
+names(dat)
+
 
 # model cluster job ind 4
 table(dat$cluster_job_ind_4)
@@ -30,7 +37,8 @@ for (i in unique(dat$cluster_job_ind_4)) {
        (cluster_job_ind_4 == i) ~ c_age + h_school +
                                   any_previous_work + c_nchildren +
                                   c_previous_sentences +
-                                  drug_depabuse + mental_health,
+                                  drug_depabuse + mental_health +
+                                  anyprison + anyjobsearch,
        data = dat,
        atmean = FALSE,
        robust = TRUE)
@@ -43,7 +51,9 @@ names.map = list(c_age = "Age",
                  c_nchildren = "Number of children",
                  c_previous_sentences = "Number of previous sentences",
                  drug_depabuse = "Dependence / abuse of drugs",
-                 mental_health = "Mental health problems")
+                 mental_health = "Mental health problems",
+                 anyjobsearch = "Searched for jobs follow-up",
+                 anyprison = "Prison during follow-up")
 
 texreg(models_job_ind_4,
        # stars = 0,
@@ -72,7 +82,8 @@ for (i in unique(dat$cluster_jobv2_4)) {
        (cluster_jobv2_4 == i) ~ c_age + h_school +
                                   any_previous_work + c_nchildren +
                                   c_previous_sentences +
-                                  drug_depabuse + mental_health,
+                                  drug_depabuse + mental_health +
+                                  anyprison + anyjobsearch,
        data = dat,
        atmean = FALSE,
        robust = TRUE)
@@ -85,7 +96,9 @@ names.map = list(c_age = "Age",
                  c_nchildren = "Number of children",
                  c_previous_sentences = "Number of previous sentences",
                  drug_depabuse = "Dependence / abuse of drugs",
-                 mental_health = "Mental health problems")
+                 mental_health = "Mental health problems",
+                 anyjobsearch = "Searched for jobs follow-up",
+                 anyprison = "Prison during follow-up")
 
 texreg(models_job_crime_v2_4,
        # stars = 0,
@@ -109,7 +122,8 @@ texreg(models_job_crime_v2_4,
 # jobs
 
 vars = c("age", "h_school", "nchildren", "any_previous_work",
-        "previous_sentences", "drug_depabuse", "mental_health")
+        "previous_sentences", "drug_depabuse", "mental_health",
+        "anyjobsearch", "anyprison")
 
 tab = dat[, lapply(.SD, mean, na.rm = TRUE), cluster_job_ind_4,
           .SDcols = vars]
@@ -118,7 +132,8 @@ tab = tab[, data.table(t(.SD), keep.rownames=TRUE), .SDcols=-"cluster_job_ind_4"
 setnames(tab, names(tab), c("Variable", "Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4"))
 tab$Variable = c("Age*", "High school", "Number of children*", "Worked before prison",
                  "Number of previous sentences*", "Dependence / abuse of drugs",
-                 "Mental health problems*")
+                 "Mental health problems*", "Searched for jobs follow-up",
+                 "Prison during follow-up")
 
 n = nrow(dat)
 
@@ -151,7 +166,8 @@ tab = tab[, data.table(t(.SD), keep.rownames=TRUE), .SDcols=-"cluster_jobv2_4"]
 setnames(tab, names(tab), c("Variable", "Cluster 1", "Cluster 2", "Cluster 3", "Cluster 4"))
 tab$Variable = c("Age*", "High school", "Number of children*", "Worked before prison",
                  "Number of previous sentences*", "Dependence / abuse of drugs",
-                 "Mental health problems*")
+                 "Mental health problems*", "Searched for jobs follow-up",
+                 "Prison during follow-up")
 
 n = nrow(dat)
 
@@ -181,15 +197,18 @@ seq_data_jobs_ind = readRDS(paste0(path_paper, "output/seq_data_job.rd"))
 seq_data_jobs_ind_distance  = readRDS(paste0(path_paper, "output/seq_data_job_distance.rd"))
 seq_data_job_crime_v2 = readRDS(paste0(path_paper, "output/seq_data_job_crime_v2.rd"))
 seq_data_job_crime_v2_distance = readRDS(paste0(path_paper, "output/seq_data_job_crime_v2_distance.rd"))
+seq_data_anyjob_crime = readRDS(paste0(path_paper, "output/seq_data_anyjob_crime.rd"))
 
 st = seqtree(seq_data_jobs_ind ~ age + only_primary + h_school +
                                   any_previous_work + nchildren +
                                   previous_sentences + early_crime +
                                   drug_depabuse + mental_health + sentence_length +
                                   total_months_in_prison + family_conflict +
-                                  self_efficacy + desire_change ,
+                                  self_efficacy + desire_change + anyprison + anyjobsearch,
                                   data = dat, R = 10000, diss = seq_data_jobs_ind_distance,
-             weight.permutation = "diss")
+             weight.permutation = "diss",
+             min.size = 0.05,
+             max.depth = 5)
 
 seqtreedisplay(st, type = "d",
                border = NA,
@@ -200,10 +219,31 @@ st = seqtree(seq_data_job_crime_v2 ~ age + only_primary + h_school +
                                   previous_sentences + early_crime +
                                   drug_depabuse + mental_health + sentence_length +
                                   total_months_in_prison + family_conflict +
-                                  self_efficacy + desire_change ,
+                                  self_efficacy + desire_change + anyprison + anyjobsearch,
                                   data = dat, R = 10000, diss = seq_data_job_crime_v2_distance,
-             weight.permutation = "diss")
+             weight.permutation = "diss",
+             min.size = 0.05,
+             max.depth = 5)
 
 seqtreedisplay(st, type = "d",
                border = NA,
+               sortv = "from.start",
                filename = paste0(path_paper, "output/reg_tree_job_crime.png"))
+
+
+
+st = seqtree(seq_data_anyjob_crime ~ age + only_primary + h_school +
+                                  any_previous_work + nchildren +
+                                  previous_sentences + early_crime +
+                                  drug_depabuse + mental_health + sentence_length +
+                                  total_months_in_prison + family_conflict +
+                                  self_efficacy + desire_change + anyprison + anyjobsearch,
+                                  data = dat, R = 10000, diss = seq_data_job_crime_v2_distance,
+             weight.permutation = "diss",
+             min.size = 0.05,
+             max.depth = 5)
+
+seqtreedisplay(st, type = "d",
+               border = NA,
+               sortv = "from.start",
+               filename = paste0(path_paper, "output/reg_tree_anyjob_crime.png"))

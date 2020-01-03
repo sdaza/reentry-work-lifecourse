@@ -27,8 +27,6 @@ dat = fread("output/bases/calendario_11_meses.csv")
 class = fread("data/clases_latentes.csv")
 dat = dat[reg_muestra == 1][!reg_folio %in% all_missing_ids]
 
-
-
 setnames(class, c("FOLIO_2", "predclass3G"),
          c("reg_folio", "class"))
 
@@ -59,6 +57,18 @@ new_work_columns = c("jobtype_1", "jobtype_2",
 dat[, (new_work_columns) := lapply(.SD, function(x) ifelse(x > 0, 1, 0)),
     .SDcols = work_columns]
 
+# job search
+job_search = c("busco_trab2", "busco_trab")
+
+dat[, (job_search) := lapply(.SD, as.numeric),
+    .SDcols = job_search]
+
+dat[busco_trab == 0, busco_trab2 :=
+      ifelse(is.na(busco_trab2), 0, busco_trab2)]
+
+dat[, jobsearch := busco_trab2]
+table(dat$jobsearch)
+
 # prison
 prison_vars = c("carcel_dias", "carcel_prision_preventiva",
                 "carcel_nueva_condena" )
@@ -73,8 +83,10 @@ table(dat$carcel_nueva_condena)
 
 dat[, prison := ifelse(carcel_dias > 0, 1, 0)]
 table(dat$prison)
+dat[, anyprison := getMax(prison), reg_folio]
 
 # crime
+# here you define the variables to be added in a sequences
 crime_vars = c("robo_habitado_congente_oc","robo_habitado_singente_oc", "robo_nohabitado_oc",
                "robo_cajeauto_oc", "robo_vehiculo_oc", "robo_en_vehiculo_oc", "robo_hurto_oc",
                "robo_robo_sorpresa_oc", "robo_robo_intimida_amenaza_oc", "robo_robo_intimida_arma_oc",
@@ -82,15 +94,26 @@ crime_vars = c("robo_habitado_congente_oc","robo_habitado_singente_oc", "robo_no
                "drogas_no_ventas_oc", "drogas_ventas_oc", "actividades_ilegales_oc", "receptacion_oc",
                 "vif_oc","vandalismo_oc", "estafas_oc","porte_armas_oc")
 
+no_income_crime = c("homicidio_oc", "amenazas_oc", "vif_oc", "vandalismo_oc",
+                    "porte_armas_oc", "lesion_grave_oc")
+
+crime_vars = crime_vars[!crime_vars %in% no_income_crime]
+
 nc_crime_vars = gsub("_oc", "", crime_vars)
 
-dat[, (c(crime_vars, nc_crime_vars)) := lapply(.SD, as.numeric),
-    .SDcols = c(crime_vars, nc_crime_vars)]
+dat[, (c(crime_vars, nc_crime_vars, no_income_crime)) := lapply(.SD, as.numeric),
+    .SDcols = c(crime_vars, nc_crime_vars, no_income_crime)]
 
 for (i in seq_along(crime_vars)) {
     dat[get(nc_crime_vars[i]) == 0, (crime_vars[i]) :=
         ifelse(is.na(get(crime_vars[i])), 0, get(crime_vars[i]))]
 }
+
+# no income crimes
+dat[, "no_income_crime" := apply(.SD, 1, flag_positive_values),
+    .SDcols = no_income_crime]
+dat[, no_income_crime := ifelse(is.na(no_income_crime), 0, no_income_crime)]
+prop.table(table(dat[, getMax(no_income_crime), reg_folio]$V1))
 
 # crime
 dat[, "crime" := apply(.SD, 1, flag_positive_values),
@@ -126,6 +149,9 @@ dat[reg_folio == sample(ids, 1),
 dat[, jobtype := jobtype_4 * 1000 + jobtype_3 * 100 +
     jobtype_2 * 10 + jobtype_1]
 
+dat[, anyjob := as.numeric(jobtype > 0)]
+table(dat$anyjob)
+
 dat[jobtype %in% c(1111, 1101, 1100, 1001, 1000), njobtype := 4]
 dat[jobtype %in% c(110, 101, 100), njobtype := 3]
 dat[jobtype %in% c(11, 10), njobtype := 2]
@@ -134,49 +160,133 @@ dat[jobtype == 0, njobtype := 0]
 
 table(dat$njobtype)
 
+# any job and search
+dat[, jobsearching := anyjob * 10 + jobsearch]
+table(dat$jobsearching)
+
+dat[jobsearching == 11, jobsearching := 10]
+table(dat$jobsearching)
+
+prop.table(table(dat[, any(jobsearching == 1), reg_folio]$V1))
+prop.table(table(dat[, any(jobsearching == 10), reg_folio]$V1))
+
+seq_data_search = create_sequences(
+    data = dat,
+    seq_variable = "jobsearching",
+    seq_labels = c("None", "Searched",
+                   "Employed"),
+    columns = 3:13
+  )
+
+seqdplot(seq_data_search, cex.legend = 0.6,
+             with.legend = "auto" )
+
+anyjobsearched.trate = seqtrate(seq_data_search)
+anyjobsearched.trate
+
+tab = seqstatd(seq_data_search)
+apply(tab[[1]][c(2,4),], 2, sum)
+
+seqmeant(seq_data_search, prop = FALSE, serr = TRUE)
+
+prop.table(table(dat[, getMax(jobsearch), reg_folio]$V1))
+# dat[, anyjobsearch := getMax(jobsearch), reg_folio]
+
+# any job
+prop.table(table(dat[, getMax(anyjob), reg_folio]$V1))
+
+seq_data_anyjob = create_sequences(
+    data = dat,
+    seq_variable = "anyjob",
+    seq_labels = c("None", "Employed"),
+    columns = 3:13
+  )
+seqmeant(seq_data_anyjob, prop = TRUE, serr = TRUE)
+
 # jobs
 seq_data_jobs = create_sequences(
     data = dat,
     seq_variable = "njobtype",
-    seq_labels = c("None", "Independent informal",
-                   "Independent formal",
-                   "Dependent informal",
-                   "Dependent formal"),
+    seq_labels = c("None", "Self-employed U",
+                   "Self-employed L",
+                   "Employed U",
+                   "Employed L"),
     columns = 3:13
   )
+
 
 savepdf(paste0(path_paper, "output/seq_dist_jobs"))
     seqdplot(seq_data_jobs, cex.legend = 0.6,
              with.legend = "auto" )
 dev.off()
 
+# any crime and job
+dat[, anyjob_crime := anyjob * 10 + crime]
+table(dat$anyjob_crime)
+
+seq_data_anyjobcrime = create_sequences(
+    data = dat,
+    seq_variable = "anyjob_crime",
+    seq_labels = c("None", "Crime",
+                   "Job",
+                   "Job-Crime"),
+    columns = 3:13
+  )
+
 # transition rates table
-states_in = paste0("-> ", c("None", "Ind informal",
-              "Ind formal",
-              "Dep informal",
-              "Dep formal"))
-states_out = paste0(c("None", "Ind informal",
-              "Ind formal",
-              "Dep informal",
-              "Dep formal"), " ->")
+states_in = paste0("> ", c("None", "Crime",
+                           "Job", "Job-Crime"))
+states_out = paste0(c("None", "Crime",
+                      "Job", "Job-Crime"), " >")
 
 
-jobs.trate = seqtrate(seq_data_jobs)
-rownames(jobs.trate) = states_out
-colnames(jobs.trate) = states_in
+anyjobcrime.trate = seqtrate(seq_data_anyjobcrime)
+rownames(anyjobcrime.trate) = states_out
+colnames(anyjobcrime.trate) = states_in
 
-caption = paste0("Transition rates jobs (N = ", n, ")")
-label = "tab:transition_rates_jobs"
-comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. Ind = Independent, Dep = Dependent."
+caption = paste0("Transition rates job-crime (N = ", n, ")")
+label = "tab:transition_rates_anyjob_crime"
+comment = "Probability to switch at a given position from state $s_i$ to state $s_j$."
 
-add_notes_table(jobs.trate,
-                align = "lccccc",
+add_notes_table(anyjobcrime.trate,
+                align = "lcccc",
                 tabcolsep = 10,
                 caption = caption,
                 label = label,
                 comment = comment,
-                filename = paste0(path_paper, "output/transtion_rates_job.tex")
+                filename = paste0(path_paper, "output/transtion_rates_anyjob_crime.tex")
                 )
+
+# compare clusters solutions
+seq_data_anyjob_crime_distance = seqdist(seq_data_anyjobcrime, norm = "auto", method = "LCS")
+# seq_data_jobs_ind_distance = seqdist(seq_data_jobs_ind, method = "HAM")
+benchmark_clusters = wcKMedRange(seq_data_anyjob_crime_distance, 2:6)
+
+# create benchmark table for jobs
+tcl = benchmark_clusters$stats
+tcl = tcl[, c("ASW", "HG", "PBC")]
+row.names(tcl) = paste0(2:6, " clusters")
+
+caption = paste0("Any job and crime quality measures for cluster solutions (N = ", n, ")")
+label = "tab:quality_clusters_anyjob_crime"
+comment = "ASW = Average Silhouette width, HG = Hubert's Gamma, PBC = Point Biserial Correlation."
+
+add_notes_table(tcl,
+                align = "lccc",
+                tabcolsep = 35,
+                caption = caption,
+                label = label,
+                comment = comment,
+                filename = paste0(path_paper, "output/cluster_quality_anyjob_crime.tex")
+                )
+
+# 4 clusters seems the best solution
+plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
+
+cl_anyjob_crime = create_clusters(seq_data_anyjob_crime, nclusters = 3)
+create_plots(seq_data_anyjob_crime, cl_anyjob_crime,
+             paste0(path_paper, "output/seq_anyjob_crime_clusters"), order = "sql")
+
 
 # independent job
 dat[njobtype == 1, independent_job := 1]
@@ -190,13 +300,40 @@ table(dat$independent_job)
 seq_data_jobs_ind = create_sequences(
     data = dat,
     seq_variable = "independent_job",
-    seq_labels = c("None", "Independent",
-                   "Dependent informal",
-                   "Dependent formal"),
+    seq_labels = c("None", "Self-employed",
+                   "Employed U",
+                   "Employed L"),
     columns = 3:13)
 
+# transition rates table
+states_in = paste0("> ", c("None", "Self-employed",
+              "Employed U",
+              "Employed L"))
+states_out = paste0(c("None", "Self-employed",
+              "Employed U",
+              "Employed L"), " >")
+
+
+jobs.trate = seqtrate(seq_data_jobs_ind)
+rownames(jobs.trate) = states_out
+colnames(jobs.trate) = states_in
+
+caption = paste0("Transition rates jobs (N = ", n, ")")
+label = "tab:transition_rates_jobs"
+comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. U = Under-the-table, L = Legitimate."
+
+add_notes_table(jobs.trate,
+                align = "lcccc",
+                tabcolsep = 10,
+                caption = caption,
+                label = label,
+                comment = comment,
+                filename = paste0(path_paper, "output/transtion_rates_job.tex")
+                )
+
 # compare clusters solutions
-seq_data_jobs_ind_distance = seqdist(seq_data_jobs_ind, method = "HAM")
+seq_data_jobs_ind_distance = seqdist(seq_data_jobs_ind, norm = "auto", method = "LCS")
+# seq_data_jobs_ind_distance = seqdist(seq_data_jobs_ind, method = "HAM")
 benchmark_clusters = wcKMedRange(seq_data_jobs_ind_distance, 2:6)
 
 # create benchmark table for jobs
@@ -250,9 +387,9 @@ table(dat$nwork_crime)
 seq_data_jobs_crime = create_sequences(data = dat,
                             seq_variable = "nwork_crime",
                             seq_labels = c("None", "Crime",
-                                           "Independent", "Independent-Crime",
-                                           "Dep informal", "Dep informal-Crime",
-                                           "Dep formal", "Dep formal-Crime"),
+                                           "Self-employed", "Self-employed - Crime",
+                                           "Employed U", "Employed U - Crime",
+                                           "Employed L", "Employed L - Crime"),
                             columns = 3:13)
 
 savepdf(paste0(path_paper, "output/seq_dist_jobs_crime"))
@@ -285,11 +422,11 @@ seq_data_job_crime_v1 = create_sequences(data = dat,
                                 seq_variable = "nwork_crime_1",
                                 seq_labels = c("None", "Crime",
                                                "Other jobs", "Other jobs-Crime",
-                                               "Dep formal", "Dep formal-Crime"),
+                                               "Employed L", "Employed L-Crime"),
                                 columns = 3:13)
 
 # compare clusters solutions
-seq_data_job_crime_v1_distance = seqdist(seq_data_job_crime_v1, method = "HAM")
+seq_data_job_crime_v1_distance = seqdist(seq_data_job_crime_v1, norm = "auto", method = "LCS")
 benchmark_clusters = wcKMedRange(seq_data_job_crime_v1_distance, 2:6)
 
 # create table job
@@ -349,12 +486,12 @@ table(dat$nwork_crime_2)
 seq_data_job_crime_v2 = create_sequences(data = dat,
                                   seq_variable = "nwork_crime_2",
                                   seq_labels = c("None", "Crime",
-                                                 "Independent", "Independent-Crime",
-                                                 "Dependent", "Dependent-Crime"),
+                                                 "Self-employed", "Self-employed - Crime",
+                                                 "Employed", "Employed - Crime"),
                                   columns = 3:13)
 
 # compare clusters solutions
-seq_data_job_crime_v2_distance = seqdist(seq_data_job_crime_v2, method = "HAM")
+seq_data_job_crime_v2_distance = seqdist(seq_data_job_crime_v2, norm = "auto", method = "LCS")
 benchmark_clusters = wcKMedRange(seq_data_job_crime_v2_distance, 2:6)
 
 # 4 clusters seems the best solution
@@ -378,10 +515,10 @@ cluster_membership[, cluster_jobv2_4 := cl_job_crime_v2_4[["c4"]][[1]]]
 
 
 # transition rates table
-states_in = paste0("-> ", c("None", "Crime","Ind", "Ind-Crime",
-                            "Dep", "Dep-Crime"))
-states_out = paste0(c("None", "Crime","Ind", "Ind-Crime",
-                            "Dep", "Dep-Crime"), " ->")
+states_in = paste0("> ", c("None", "Crime","SE", "SE-Crime",
+                            "E", "E-Crime"))
+states_out = paste0(c("None", "Crime","SE", "SE-Crime",
+                        "E", "E-Crime"), " >")
 
 jobs_crime.trate = seqtrate(seq_data_job_crime_v2)
 rownames(jobs_crime.trate) = states_out
@@ -389,7 +526,7 @@ colnames(jobs_crime.trate) = states_in
 
 caption = paste0("Transition rates jobs-crime (N = ", n, ")")
 label = "tab:transition_rates_jobs_crime"
-comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. Ind = independent, Dep = Dependent."
+comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. SE = Self-employed, E = Employed."
 
 add_notes_table(jobs_crime.trate,
                 align = "lcccccc",
@@ -407,7 +544,11 @@ fwrite(cluster_membership,
        row.names = FALSE)
 
 # save sequence data
+ccovs = c("anyjob", "anyjobsearch" , "anyprison")
+saveRDS(dat[, lapply(.SD, getMax), reg_folio, .SDcols = ccovs],
+        file = paste0(path_paper, "output/calendar_covs.rd"))
 saveRDS(seq_data_jobs_ind, file = paste0(path_paper, "output/seq_data_job.rd"))
+saveRDS(seq_data_anyjobcrime, file = paste0(path_paper, "output/seq_data_anyjob_crime.rd"))
 saveRDS(seq_data_jobs_ind_distance, file = paste0(path_paper, "output/seq_data_job_distance.rd"))
 saveRDS(seq_data_job_crime_v2, file = paste0(path_paper, "output/seq_data_job_crime_v2.rd"))
 saveRDS(seq_data_job_crime_v2_distance, file = paste0(path_paper, "output/seq_data_job_crime_v2_distance.rd"))
