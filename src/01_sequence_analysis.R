@@ -219,7 +219,7 @@ states_out = paste0(c("None", "Searched",
                       "Employed L"), " >")
 
 jobsearched.trate = seqtrate(seq_data_search)
-jobsearched.trate
+
 rownames(jobsearched.trate) = states_out
 colnames(jobsearched.trate) = states_in
 

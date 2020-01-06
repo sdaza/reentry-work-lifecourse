@@ -198,6 +198,8 @@ seq_data_jobs_se_distance  = readRDS(paste0(path_paper, "output/seq_data_job_dis
 seq_data_job_crime = readRDS(paste0(path_paper, "output/seq_data_job_crime_em_se.rd"))
 seq_data_job_crime_distance = readRDS(paste0(path_paper, "output/seq_data_job_crime_em_se_distance.rd"))
 
+# jobs
+
 st = seqtree(seq_data_jobs_se ~ age + only_primary + h_school +
                                   any_previous_work + nchildren +
                                   previous_sentences + early_crime +
@@ -212,6 +214,19 @@ st = seqtree(seq_data_jobs_se ~ age + only_primary + h_school +
 seqtreedisplay(st, type = "d",
                border = NA,
                filename = paste0(path_paper, "output/reg_tree_job.png"))
+
+# multifactor table
+job.mfac = dissmfacw(seq_data_jobs_se_distance ~ age + only_primary + h_school +
+                     any_previous_work + nchildren +
+                     previous_sentences + early_crime +
+                     drug_depabuse + mental_health + sentence_length +
+                     total_months_in_prison + family_conflict +
+                     self_efficacy + desire_change + anyprison + anyjobsearch,
+                     data = dat, R = 1000)
+
+job.mfac$mfac[order(-job.mfac$mfac$PseudoR2), ]
+
+# job and crime
 
 st = seqtree(seq_data_job_crime_em_se ~ age + only_primary + h_school +
                                   any_previous_work + nchildren +
@@ -228,3 +243,15 @@ seqtreedisplay(st, type = "d",
                border = NA,
                sortv = "from.start",
                filename = paste0(path_paper, "output/reg_tree_job_crime.png"))
+
+
+# multifactor table
+jobcrime.mfac = dissmfacw(seq_data_job_crime_em_se_distance ~ age + only_primary + h_school +
+                     any_previous_work + nchildren +
+                     previous_sentences + early_crime +
+                     drug_depabuse + mental_health + sentence_length +
+                     total_months_in_prison + family_conflict +
+                     self_efficacy + desire_change + anyprison + anyjobsearch,
+                     data = dat, R = 1000)
+
+jobcrime.mfac$mfac[order(-jobcrime.mfac$mfac$PseudoR2), ]
