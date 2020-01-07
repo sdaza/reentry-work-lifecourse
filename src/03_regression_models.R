@@ -30,11 +30,11 @@ cluster_labels = readRDS(paste0(path_paper, "output/cluster_labels.rd"))
 cluster_labels_jobs_se = cluster_labels[[1]]
 cluster_labels_job_crime = cluster_labels[[2]]
 
-# model cluster job ind 4
+# model cluster job 4
 table(dat$cluster_job_se_4)
 
 models_job_se_4 = list()
-for (i in unique(dat$cluster_job_se_4)) {
+for (i in unique(cluster_labels_jobs_se)) {
 
     models_job_se_4[[i]] = logitmfx(
        (cluster_job_se_4 == i) ~ c_age + h_school +
@@ -58,9 +58,7 @@ names.map = list(c_age = "Age",
                  anyprison = "Prison during follow-up")
 
 texreg(models_job_se_4,
-       # stars = 0,
        custom.model.names = cluster_labels_jobs_se,
-       # groups = list("Race (ref. White)" = 4:5, "Education (ref. $<$ HS)" = 7:9),
        custom.coef.map = names.map,
        custom.note = "%stars. Robust standard errors in parenthesis.",
        booktabs = TRUE,
@@ -78,7 +76,7 @@ texreg(models_job_se_4,
 table(dat$cluster_job_crime_em_se_4)
 
 models_job_crime_em_se_4 = list()
-for (i in unique(dat$cluster_job_crime_em_se_4)) {
+for (i in unique(cluster_labels_job_crime)) {
 
     models_job_crime_em_se_4[[i]] = logitmfx(
        (cluster_job_crime_em_se_4 == i) ~ c_age + h_school +
@@ -127,8 +125,9 @@ vars = c("age", "h_school", "nchildren", "any_previous_work",
 
 tab = dat[, lapply(.SD, mean, na.rm = TRUE), cluster_job_se_4,
           .SDcols = vars]
-
+tab = tab[order(match(cluster_job_se_4, cluster_labels_jobs_se))]
 tab = tab[, data.table(t(.SD), keep.rownames=TRUE), .SDcols=-"cluster_job_se_4"]
+
 setnames(tab, names(tab), c("Variable", cluster_labels_jobs_se))
 tab$Variable = c("Age*", "High school", "Number of children*", "Worked before prison",
                  "Number of previous sentences*", "Dependence / abuse of drugs",
@@ -161,8 +160,9 @@ rm(ptab, tab)
 
 tab = dat[, lapply(.SD, mean, na.rm = TRUE), cluster_job_crime_em_se_4,
           .SDcols = vars]
-
+tab = tab[order(match(cluster_job_crime_em_se_4, cluster_labels_job_crime))]
 tab = tab[, data.table(t(.SD), keep.rownames=TRUE), .SDcols=-"cluster_job_crime_em_se_4"]
+
 setnames(tab, names(tab), c("Variable", cluster_labels_job_crime))
 tab$Variable = c("Age*", "High school", "Number of children*", "Worked before prison",
                  "Number of previous sentences*", "Dependence / abuse of drugs",

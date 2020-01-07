@@ -139,7 +139,9 @@ create_sequences = function(data, seq_variable, seq_labels, columns) {
 
 
 create_clusters = function(seq_data, method = "HAM", norm_distance = "auto",
-                           nclusters = 2:5) {
+                           nclusters = 2:5,
+                           cluster_labels = NULL,
+                           cluster_levels = NULL) {
 
     list_clusters = list()
     distance = seqdist(seq_data, method = method, norm = norm_distance)
@@ -150,11 +152,17 @@ create_clusters = function(seq_data, method = "HAM", norm_distance = "auto",
                                           cluster.only = TRUE))
         assign(paste0("sil", i), wcSilhouetteObs(distance,
                                                  get(paste0("c", i)),
-                                                 measure="ASWw"))
+                                                 measure = "ASWw"))
 
-        list_clusters[[paste0("c", i)]] = list(data.table(c = get(paste0("c", i)))[
-                                                         , cc := paste0("Cluster ", .GRP), c][
-                                                         , cc],
+        if (!is.null(cluster_labels)) {
+            assign(paste0("c", i), factor(get(paste0("c", i)), labels = cluster_labels))
+        }
+
+        if (!is.null(cluster_levels)) {
+            assign(paste0("c", i), factor(get(paste0("c", i)), levels = cluster_levels))
+        }
+
+        list_clusters[[paste0("c", i)]] = list(get(paste0("c", i)),
                                                get(paste0("sil", i))
                                                )
     }
@@ -166,7 +174,6 @@ create_plots = function(seq_data,
                         cl,
                         filepath,
                         order = "from.start",
-                        cluster_labels = NULL,
                         method_distance = "HAM",
                         norm_distance = "auto") {
 
@@ -174,18 +181,6 @@ create_plots = function(seq_data,
                        method = method_distance)
 
     clusters = cl[[1]]
-    cluster_names = sort(unique(clusters))
-
-    # custom cluster labels
-    if (length(cluster_labels > 0)) {
-        if (length(cluster_names) == length(cluster_labels)) {
-            for (i in seq_along(cluster_names)) {
-                clusters[clusters == cluster_names[i]] = cluster_labels[i]
-            }
-        } else {
-              (stop("Number of cluster labels is not equal to the number of clusters"))
-          }
-    }
 
     savepdf(filepath)
 

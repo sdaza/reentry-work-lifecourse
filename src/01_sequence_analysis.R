@@ -337,18 +337,23 @@ add_notes_table(tcl,
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 
 # create plots (self-employed = se)
+cluster_labels_jobs_se = c("Under-the-table", "Legitimate employed",
+                           "Self-employed", "Unemployed")
+cluster_levels_jobs_se = c("Unemployed", "Self-employed",
+                           "Under-the-table", "Legitimate employed")
 cl_jobs_se_4 = create_clusters(seq_data_jobs_se, nclusters = 4,
-                               method = "HAM")
-
-cluster_labels_jobs_se = c("Unemployed", "Under-the-table",
-                           "Legitimate employed",
-                           "Self-employed")
-
+                               method = "HAM",
+                               cluster_labels = cluster_labels_jobs_se,
+                               cluster_levels = cluster_levels_jobs_se
+                               )
 create_plots(seq_data_jobs_se, cl_jobs_se_4[[1]],
-             cluster_labels = cluster_labels_jobs_se,
-             paste0(path_paper, "output/seq_job_se_4_clusters"), order = "sql")
+             paste0(path_paper, "output/seq_job_se_4_clusters"),
+             order = "sql")
 
 cluster_membership[, cluster_job_se_4 := cl_jobs_se_4[["c4"]][[1]]]
+
+by(seq_data_jobs_se, cluster_membership$cluster_job_se_4, seqstatd)
+by(seq_data_jobs_se, cluster_membership$cluster_job_se_4, seqmeant)
 
 # add crime
 dat[, work_crime := independent_job]
@@ -394,12 +399,14 @@ dat[work_crime_em_se == 20, work_crime_em_se := 4]
 dat[work_crime_em_se == 21, work_crime_em_se := 5]
 table(dat$work_crime_em_se)
 
-seq_data_job_crime_em_se = create_sequences(data = dat,
-                                  seq_variable = "work_crime_em_se",
-                                  seq_labels = c("None", "Crime",
-                                                 "Self-employed", "Self-employed - Crime",
-                                                 "Employed", "Employed - Crime"),
-                                  columns = 3:13)
+seq_data_job_crime_em_se = create_sequences(
+    data = dat,
+    seq_variable = "work_crime_em_se",
+    seq_labels = c("None", "Crime",
+                   "Self-employed", "Self-employed - Crime",
+                   "Employed", "Employed - Crime"),
+    columns = 3:13
+)
 
 # compare clusters solutions
 seq_data_job_crime_em_se_distance = seqdist(seq_data_job_crime_em_se,
@@ -428,19 +435,28 @@ add_notes_table(tcl,
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 
 # 4-cluster solution
+cluster_labels_job_crime = c("Employed", "Self-employed",
+                             "Unemployed", "Offenders"
+                            )
+cluster_levels_job_crime = c("Unemployed", "Offenders",
+                             "Self-employed", "Employed")
+
 cl_job_crime_em_se_4 = create_clusters(seq_data_job_crime_em_se,
                                        nclusters = 4,
                                        method = "HAM",
-                                       norm_distance = "auto")
+                                       norm_distance = "auto",
+                                       cluster_labels = cluster_labels_job_crime,
+                                       cluster_levels = cluster_levels_job_crime
+                                       )
 
-cluster_labels_job_crime = c("Offenders", "Unemployed",
-                             "Employed", "Self-employed")
 create_plots(seq_data_job_crime_em_se, cl_job_crime_em_se_4[[1]],
-             cluster_labels = cluster_labels_job_crime,
              paste0(path_paper, "output/seq_job_crime_em_se_4_clusters"),
              order = "sql")
 
 cluster_membership[, cluster_job_crime_em_se_4 := cl_job_crime_em_se_4[["c4"]][[1]]]
+
+by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4, seqstatd)
+by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4, seqmeant)
 
 # transition rates table
 states_in = paste0("> ", c("None", "Crime","SE", "SE-Crime",
@@ -508,7 +524,7 @@ fwrite(cluster_membership,
 
 # save sequence data
 ccovs = c("anyjob", "anyjobsearch" , "anyprison")
-saveRDS(list(cluster_labels_jobs_se, cluster_labels_job_crime),
+saveRDS(list(cluster_levels_jobs_se, cluster_levels_job_crime),
         file = paste0(path_paper, "output/cluster_labels.rd"))
 saveRDS(dat[, lapply(.SD, getMax), reg_folio, .SDcols = ccovs],
         file = paste0(path_paper, "output/calendar_covs.rd"))
