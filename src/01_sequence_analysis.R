@@ -264,6 +264,7 @@ seq_data_jobs = create_sequences(
   )
 
 seqstatd(seq_data_jobs)
+
 savepdf(paste0(path_paper, "output/seq_dist_jobs"))
     seqdplot(seq_data_jobs, cex.legend = 0.6,
              with.legend = "right")
@@ -352,8 +353,25 @@ create_plots(seq_data_jobs_se, cl_jobs_se_4[[1]],
 
 cluster_membership[, cluster_job_se_4 := cl_jobs_se_4[["c4"]][[1]]]
 
-by(seq_data_jobs_se, cluster_membership$cluster_job_se_4, seqstatd)
-by(seq_data_jobs_se, cluster_membership$cluster_job_se_4, seqmeant)
+# select_cluster = "Legitimate employed"
+select_cluster = "Under-the-table"
+
+temp = data.table(
+                  by(seq_data_jobs_se,
+                     cluster_membership$cluster_job_se_4,
+                     seqistatd)[[select_cluster]]
+                  )
+setnames(temp, names(temp), paste0("c", 1:4))
+
+temp = temp[, lapply(.SD, function(x) ifelse(x > 0, 1, 0))]
+temp[, otherthan := apply(.SD, 1, sum), .SDcols = c("c1", "c2", "c4")]
+temp
+temp[, only := ifelse(c3 == 1 & otherthan == 0, 1, 0)]
+prop.table(table(temp$only))
+
+by(seq_data_jobs_se, cluster_membership$cluster_job_se_4, seqstatf)[[select_cluster]]
+by(seq_data_jobs_se, cluster_membership$cluster_job_se_4, seqstatd)[[select_cluster]]
+by(seq_data_jobs_se, cluster_membership$cluster_job_se_4, seqmeant, prop = FALSE)[[select_cluster]]
 
 # add crime
 dat[, work_crime := independent_job]
@@ -377,10 +395,41 @@ seq_data_jobs_crime = create_sequences(data = dat,
                                            "Employed L", "Employed L - Crime"),
                             columns = 3:13)
 
+#1 0 "None"
+#2 1 "Crime"
+#3 2 "Self-employed"
+#4 3 "Self-employed - Crime"
+#5 4 "Employed U"
+#6 5 "Employed U - Crime"
+#7 6 "Employed L"
+#8 7 "Employed L - Crime"
+
 savepdf(paste0(path_paper, "output/seq_dist_jobs_crime"))
     seqdplot(seq_data_jobs_crime, cex.legend=0.6,
              with.legend = "right")
-dev.off()
+
+
+seqstatf(seq_data_jobs_crime)
+seqstatd(seq_data_jobs_crime)
+seqmeant(seq_data_jobs_crime)
+
+
+tt = apply(
+    seqstatd(seq_data_jobs_crime)[[1]][c(4,6,8),],
+    2,
+    sum
+)
+mean(tt)
+min(tt)
+
+
+temp = data.table(seqistatd(seq_data_jobs_crime))
+
+setnames(temp, names(temp), paste0("c", 1:8))
+temp = temp[, lapply(.SD, function(x) ifelse(x > 0, 1, 0))]
+temp[, otherthan := apply(.SD, 1, sum), .SDcols = paste0("c", c(4,6,8))]
+prop.table(table(temp$otherthan > 0))
+
 
 # crime and employed vs self-employed
 dat[njobtype == 1, type_job_em_se := 1]
@@ -455,8 +504,32 @@ create_plots(seq_data_job_crime_em_se, cl_job_crime_em_se_4[[1]],
 
 cluster_membership[, cluster_job_crime_em_se_4 := cl_job_crime_em_se_4[["c4"]][[1]]]
 
-by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4, seqstatd)
-by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4, seqmeant)
+# select_cluster = "Legitimate employed"
+select_cluster = "Self-employed"
+select_cluster = "Employed"
+
+temp = data.table(
+                  by(seq_data_job_crime_em_se,
+                     cluster_membership$cluster_job_crime_em_se_4,
+                     seqistatd)[[select_cluster]]
+                  )
+
+setnames(temp, names(temp), paste0("c", 1:6))
+
+temp = temp[, lapply(.SD, function(x) ifelse(x > 0, 1, 0))]
+temp[, otherthan := apply(.SD, 1, sum), .SDcols = paste0("c", c(2))]
+
+temp[, otherthan := apply(.SD, 1, sum), .SDcols = paste0("c", c(3,5))]
+temp[, only := ifelse(c1 == 1 & otherthan == 0, 1, 0)]
+prop.table(table(temp$only))
+prop.table(table(temp$otherthan > 0))
+
+by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4, seqstatf)[[select_cluster]]
+by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4, seqstatd)[[select_cluster]]
+by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4, seqmeant, prop = FALSE)[[select_cluster]]
+
+by(seq_data_search, cluster_membership$cluster_job_crime_em_se_4, seqtrate)[[select_cluster]]
+by(seq_data_anyjobcrime, cluster_membership$cluster_job_crime_em_se_4, seqtrate)[[select_cluster]]
 
 # transition rates table
 states_in = paste0("> ", c("None", "Crime","SE", "SE-Crime",
