@@ -4,7 +4,10 @@
 .Rhistory
 .ipynb_checkpoints
 *.rd
+*.rds
 *.csv
 *.xlsx
 /src/stata
 renv/library
+renv/.gitignore
+/data

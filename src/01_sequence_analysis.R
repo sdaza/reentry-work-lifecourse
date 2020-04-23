@@ -17,22 +17,20 @@ set.seed(210013)
 
 # relative directory of the paper
 path_paper = "reports/paper-work-lifecourse/"
-
 source(paste0(path_paper, "src/utils.R"))
 
 # all missing ids
 all_missing_ids = c(10016, 10083, 10097, 10248, 20020, 20120, 20191,
-                    20289, 20298, 30025, 30148, 30159, 40267, 50080,
-                    50131, 50163, 50242, 50245)
+    20289, 20298, 30025, 30148, 30159, 40267, 50080,
+    50131, 50163, 50242, 50245)
 
 # read data
-dat = fread("output/bases/calendario_11_meses.csv")
+dat = readRDS(paste0(path_paper, "output/job_calendar.rds"))
 class = fread("data/clases_latentes.csv")
-dat = dat[reg_muestra == 1][!reg_folio %in% all_missing_ids]
-
 setnames(class, c("FOLIO_2", "predclass3G"),
          c("reg_folio", "class"))
 
+dat = dat[reg_muestra == 1][!reg_folio %in% all_missing_ids]
 dat = merge(dat, class[, .(reg_folio, class)],
             by = "reg_folio", x.all = TRUE)
 
@@ -44,51 +42,26 @@ cluster_membership = data.table::copy(unique(dat[, .(reg_folio)]))
 
 # job
 
-# 1 = 0 = cuenta propia informal
-# 2 = 1 = cuenta propia formal
-# 3 = 10 = dependiente informal
-# 4 = 11 = dependiente formal
+# 1 = cuenta propia informal
+# 2 = cuenta propia formal
+# 3 = dependiente informal
+# 4 = dependiente formal
 
-work_columns = c("jobtype_1_oc", "jobtype_2_oc",
-                 "jobtype_3_oc", "jobtype_4_oc")
-dat[, (work_columns) := lapply(.SD, as.numeric),
-    .SDcols = work_columns]
+names(dat)
+work_columns = paste0("trabajo", 1:7, "_oc")
 
-new_work_columns = c("jobtype_1", "jobtype_2",
-                     "jobtype_3", "jobtype_4")
-
-dat[, (new_work_columns) := lapply(.SD, function(x) ifelse(x > 0, 1, 0)),
-    .SDcols = work_columns]
+# get max of jobs by time
+dat[, job := apply(.SD, 1, getMax), .SDcols = work_columns]
 
 # job search
-job_search = c("busco_trab2", "busco_trab")
+table(dat$trab_busco_oc)
 
-dat[, (job_search) := lapply(.SD, as.numeric),
-    .SDcols = job_search]
-
-dat[busco_trab == 0, busco_trab2 :=
-      ifelse(is.na(busco_trab2), 0, busco_trab2)]
-
-dat[, jobsearch := busco_trab2]
-table(dat$jobsearch)
-
-# prison
-prison_vars = c("carcel_dias", "carcel_prision_preventiva",
-                "carcel_nueva_condena" )
-dat[, (prison_vars) := lapply(.SD, as.numeric),
-    .SDcols = prison_vars]
-
-dat[carcel_prision_preventiva == 0 & carcel_nueva_condena == 0,
-    carcel_dias := ifelse(is.na(carcel_dias), 0, carcel_dias)]
-
-table(dat$carcel_prision_preventiva)
-table(dat$carcel_nueva_condena)
-
-dat[, prison := ifelse(carcel_dias > 0, 1, 0)]
+# prison, check filter
+table(dat$jst_carcel_dias)
+dat[, prison := ifelse(jst_carcel_dias > 0, 1, 0)]
 table(dat$prison)
 dat[, anyprison := getMax(prison), reg_folio]
 prop.table(table(dat[, getMax(prison), reg_folio]$V1))
-
 
 # crime
 # here you define the variables to be added in a sequences
@@ -97,7 +70,7 @@ crime_vars = c("robo_habitado_congente_oc","robo_habitado_singente_oc", "robo_no
                "robo_robo_sorpresa_oc", "robo_robo_intimida_amenaza_oc", "robo_robo_intimida_arma_oc",
                "robo_robo_con_violencia_oc", "lesion_grave_oc", "homicidio_oc","amenazas_oc",
                "drogas_no_ventas_oc", "drogas_ventas_oc", "actividades_ilegales_oc", "receptacion_oc",
-                "vif_oc","vandalismo_oc", "estafas_oc","porte_armas_oc")
+               "vif_oc","vandalismo_oc", "estafas_oc","porte_armas_oc")
 
 no_income_crime = c("homicidio_oc", "amenazas_oc", "vif_oc", "vandalismo_oc",
                     "porte_armas_oc", "lesion_grave_oc")
@@ -135,10 +108,10 @@ ids = unique(dat$reg_folio)
 dat[reg_folio == sample(ids, 1),
    .(month_index, jobtype_4, jobtype_3, jobtype_2, jobtype_1)]
 
-# 1 = 0 = cuenta propia informal
-# 2 = 1 = cuenta propia formal
-# 3 = 10 = dependiente informal
-# 4 = 11 = dependiente formal
+# 1 = cuenta propia informal
+# 2 = cuenta propia formal
+# 3 = dependiente informal
+# 4 = dependiente formal
 
 # recode combinations
 # impute with zero when there is at least one valid value
@@ -598,10 +571,11 @@ fwrite(cluster_membership,
 # save sequence data
 ccovs = c("anyjob", "anyjobsearch" , "anyprison")
 saveRDS(list(cluster_levels_jobs_se, cluster_levels_job_crime),
-        file = paste0(path_paper, "output/cluster_labels.rd"))
+        file = paste0(path_paper, "output/cluster_labels.rds"))
 saveRDS(dat[, lapply(.SD, getMax), reg_folio, .SDcols = ccovs],
-        file = paste0(path_paper, "output/calendar_covs.rd"))
-saveRDS(seq_data_jobs_se, file = paste0(path_paper, "output/seq_data_job.rd"))
-saveRDS(seq_data_jobs_se_distance, file = paste0(path_paper, "output/seq_data_job_distance.rd"))
-saveRDS(seq_data_job_crime_em_se, file = paste0(path_paper, "output/seq_data_job_crime_em_se.rd"))
-saveRDS(seq_data_job_crime_em_se_distance, file = paste0(path_paper, "output/seq_data_job_crime_em_se_distance.rd"))
+        file = paste0(path_paper, "output/calendar_covs.rds"))
+saveRDS(seq_data_jobs_se, file = paste0(path_paper, "output/seq_data_job.rds"))
+saveRDS(seq_data_jobs_se_distance, file = paste0(path_paper, "output/seq_data_job_distance.rds"))
+saveRDS(seq_data_job_crime_em_se, file = paste0(path_paper, "output/seq_data_job_crime_em_se.rds"))
+saveRDS(seq_data_job_crime_em_se_distance, file = paste0(path_paper,
+    "output/seq_data_job_crime_em_se_distance.rds"))
