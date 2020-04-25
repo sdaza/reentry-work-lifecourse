@@ -220,6 +220,6 @@ cvars = c('age', 'sentence_length', 'nchildren', 'previous_sentences')
 bs[, paste0('c_', cvars) := lapply(.SD, scale, scale=FALSE), .SDcols = cvars]
 
 # save data.table
-saveRDS(bs, file = paste0(path_paper, "output/baseline_covariates.rd"))
+saveRDS(bs, file = paste0(path_paper, "output/baseline_covariates.rds"))
 
 

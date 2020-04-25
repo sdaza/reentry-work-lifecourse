@@ -18,8 +18,8 @@ path_paper = "reports/paper-work-lifecourse/"
 source(paste0(path_paper, "src/utils.R"))
 
 # load data
-covs = readRDS(paste0(path_paper, "output/baseline_covariates.rd"))
-cal_covs = readRDS(paste0(path_paper, "output/calendar_covs.rd"))
+covs = readRDS(paste0(path_paper, "output/baseline_covariates.rds"))
+cal_covs = readRDS(paste0(path_paper, "output/calendar_covs.rds"))
 
 clusters = fread(paste0(path_paper, "output/cluster_membership.csv"))
 dat = merge(covs, clusters, by = "reg_folio")
@@ -27,7 +27,7 @@ dat = merge(dat, cal_covs, by = "reg_folio")
 names(dat)
 
 # clusters labels
-cluster_labels = readRDS(paste0(path_paper, "output/cluster_labels.rd"))
+cluster_labels = readRDS(paste0(path_paper, "output/cluster_labels.rds"))
 cluster_labels_jobs_se = cluster_labels[[1]]
 cluster_labels_job_crime = cluster_labels[[2]]
 
@@ -67,7 +67,7 @@ texreg(models_job_se_4,
        dcolumn = TRUE,
        use.packages = FALSE,
        label = "tab:models_job_4",
-       caption = paste0("Marginal effects of logistics models of employment cluster membership \\newline based on solution in Figure \\ref{fig:sequences_job_4}"),
+       caption = paste0("Marginal effects from logistics models of four employment clusters"),
        caption.above = TRUE,
        fontsize = "footnotesize",
        float.pos = "htp",
@@ -111,7 +111,7 @@ texreg(models_job_crime_em_se_4,
        dcolumn = TRUE,
        use.packages = FALSE,
        label = "tab:models_job_crime_4",
-       caption = paste0("Marginal effects of logistics models for employment-crime cluster membership \\newline based on solution in Figure \\ref{fig:sequences_job_crime_4}"),
+       caption = paste0("Marginal effects from logistics models of four employment-crime clusters"),
        caption.above = TRUE,
        fontsize = "footnotesize",
        float.pos = "htp",
@@ -121,7 +121,6 @@ texreg(models_job_crime_em_se_4,
 # descriptive table
 
 # jobs
-
 name_vars = c("age", "h_school", "nchildren", "any_previous_work",
                "previous_sentences", "sentence_length", "drug_depabuse", "mental_health",
                "anyjobsearch", "anyprison")
@@ -142,9 +141,7 @@ tab[, Variable := values(dict_vars, name_vars)]
 
 n = nrow(dat)
 
-tab
-caption = paste0("Descriptive statistics by employment clusters \\newline based on solution in Figure \\ref{fig:sequences_job_4} (N = ",
-                 n, ")")
+caption = paste0("Socio-demographic characteristics of women inmates \\newline by four employment clusters (N =", n, ")")
 label = "tab:descriptives_job_4"
 ptab = print(xtable(tab, caption = caption, label = label, align = "llcccc"),
              include.rownames=FALSE,
@@ -164,7 +161,6 @@ cat(ptab, file = paste0(path_paper, "output/descriptives_job_4.tex"))
 rm(ptab, tab)
 
 # jobs and crime
-
 tab = dat[, lapply(.SD, mean, na.rm = TRUE), cluster_job_crime_em_se_4,
           .SDcols = name_vars]
 tab = tab[order(match(cluster_job_crime_em_se_4, cluster_labels_job_crime))]
@@ -174,8 +170,7 @@ tab[, Variable := values(dict_vars, name_vars)]
 
 n = nrow(dat)
 
-caption = paste0("Descriptive statistics by employment-crime clusters \\newline based on solution in Figure \\ref{fig:sequences_job_crime_4} (N = ",
-                 n, ")")
+caption = paste0("Socio-demographic characteristics of women inmates \\newline by four crime-employment clusters (N =", n, ")")
 label = "tab:descriptives_job_crime_4"
 ptab = print(xtable(tab, caption = caption, label = label, align = "llcccc"),
              include.rownames=FALSE,
@@ -195,14 +190,12 @@ cat(ptab, file = paste0(path_paper, "output/descriptives_job_crime_4.tex"))
 rm(ptab, tab)
 
 # discrepancy analysis
-
-seq_data_jobs_se = readRDS(paste0(path_paper, "output/seq_data_job.rd"))
-seq_data_jobs_se_distance  = readRDS(paste0(path_paper, "output/seq_data_job_distance.rd"))
-seq_data_job_crime = readRDS(paste0(path_paper, "output/seq_data_job_crime_em_se.rd"))
-seq_data_job_crime_distance = readRDS(paste0(path_paper, "output/seq_data_job_crime_em_se_distance.rd"))
+seq_data_jobs_se = readRDS(paste0(path_paper, "output/seq_data_job.rds"))
+seq_data_jobs_se_distance  = readRDS(paste0(path_paper, "output/seq_data_job_distance.rds"))
+seq_data_job_crime = readRDS(paste0(path_paper, "output/seq_data_job_crime_em_se.rds"))
+seq_data_job_crime_distance = readRDS(paste0(path_paper, "output/seq_data_job_crime_em_se_distance.rds"))
 
 # jobs
-
 st = seqtree(seq_data_jobs_se ~ age + h_school +
                                   any_previous_work + nchildren +
                                   previous_sentences +
@@ -226,7 +219,6 @@ job.mfac = dissmfacw(seq_data_jobs_se_distance ~ age + h_school +
 job.mfac$mfac[order(-job.mfac$mfac$PseudoR2), ]
 
 # job and crime
-
 st = seqtree(seq_data_job_crime_em_se ~ age + h_school +
                                   any_previous_work + nchildren +
                                   previous_sentences +

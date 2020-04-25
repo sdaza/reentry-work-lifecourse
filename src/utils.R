@@ -91,13 +91,12 @@ table = function (...) base::table(..., useNA = 'ifany')
 cor = function (...) stats::cor(..., use = "complete.obs")
 
 
-savepdf = function(file, width=16, height=10) {
-
+savepdf = function(file, width = 16, height = 10, mgp = c(2.2,0.45,0),
+    tcl = -0.4, mar = c(3.3,3.6,1.1,1.1)) {
     fname = paste0(file, ".pdf")
     pdf(fname, width=width/2.54, height=height/2.54,
         pointsize=10)
-    par(mgp=c(2.2,0.45,0), tcl=-0.4, mar=c(3.3,3.6,1.1,1.1))
-
+    par(mgp = mgp, tcl = tcl, mar = mar)
 }
 
 
@@ -125,13 +124,19 @@ countmis  = function(dat, vars = NULL, pct = TRUE, exclude.complete = TRUE) {
 }
 
 
-create_sequences = function(data, seq_variable, seq_labels, columns) {
-    temp = data.table::copy(data[, c("reg_folio",
-                                 "month_index", "class", seq_variable), with = FALSE])
+create_sequences = function(data, seq_variable, seq_labels = NULL, colors = NULL,
+    time_index = "month_index",
+    time_invariant = c("reg_folio", "month_index", "class")
+    ) {
+
+    temp = data.table::copy(data[, c(time_invariant, seq_variable), with = FALSE])
+    time = as.character(order(unique(na.omit(temp$month_index))))
     temp = dcast(temp, reg_folio + class ~ month_index,
-                 value.var = seq_variable)
+        value.var = seq_variable)
+
+    columns = which(names(temp) %in% time)
     s1 = seqdef(temp, columns, right = NA,
-                labels = seq_labels)
+        labels = seq_labels, cpal = colors)
     m1 = pstree(s1, L = 10)
     s1i = impute(m1, s1, method = "prob")
     return(s1i)
@@ -177,16 +182,15 @@ create_plots = function(seq_data,
                         method_distance = "HAM",
                         norm_distance = "auto") {
 
-    distance = seqdist(seq_data, norm = norm_distance,
-                       method = method_distance)
+    distance = seqdist(seq_data, norm = norm_distance, method = method_distance)
 
     clusters = cl[[1]]
 
     savepdf(filepath)
 
     ifelse(order == "from.start",
-           seqIplot(seq_data, group = group.p(clusters), sortv = "from.start"),
-           seqIplot(seq_data, group = group.p(clusters), sortv = cl[[2]])
+        seqIplot(seq_data, group = group.p(clusters), sortv = "from.start"),
+        seqIplot(seq_data, group = group.p(clusters), sortv = cl[[2]])
     )
 
     seqdplot(seq_data, group = group.p(clusters))
@@ -194,9 +198,7 @@ create_plots = function(seq_data,
     seqrplot(seq_data, group = group.p(clusters),
              dist.matrix = distance, border = NA)
     TraMineRextras::seqplot.tentrop(seq_data, group = group.p(clusters))
-
     dev.off()
-
 }
 
 
