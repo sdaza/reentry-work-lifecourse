@@ -133,8 +133,9 @@ create_sequences = function(data, seq_variable, seq_labels = NULL, colors = NULL
     time = as.character(order(unique(na.omit(temp$month_index))))
     temp = dcast(temp, reg_folio + class ~ month_index,
         value.var = seq_variable)
-
+    print(paste0("Names of columns: ", paste0(names(temp), collapse = ",")))
     columns = which(names(temp) %in% time)
+    print(paste0("Columns selected: ", paste0(columns, collapse = ",")))
     s1 = seqdef(temp, columns, right = NA,
         labels = seq_labels, cpal = colors)
     m1 = pstree(s1, L = 10)

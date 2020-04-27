@@ -116,6 +116,7 @@ dat[is.na(days_month), days_month := 0]
 length(unique(dat[month_index == 12 & (days_month <= 15), reg_folio])) /
     length(unique(dat[month_index == 12, reg_folio]))
 
+ dat
 # prison
 seq_data_prison = create_sequences(
     data = dat,
