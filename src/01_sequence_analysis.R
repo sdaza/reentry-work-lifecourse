@@ -179,13 +179,13 @@ label = "tab:transition_rates_job_search"
 comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. U = Under-the-table, L = Legitimate."
 
 add_notes_table(jobsearched.trate ,
-                align = "lccccc",
-                tabcolsep = 10,
-                caption = caption,
-                label = label,
-                comment = comment,
-                filename = paste0(path_paper, "output/transition_rates_job_search.tex")
-                )
+    align = "lccccc",
+    tabcolsep = 10,
+    caption = caption,
+    label = label,
+    comment = comment,
+    filename = paste0(path_paper, "output/transition_rates_job_search.tex")
+)
 
 seqmeant(seq_data_search, prop = FALSE, serr = TRUE)
 
@@ -289,9 +289,9 @@ add_notes_table(tcl,
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 
 # create plots (self-employed = se)
-cluster_labels_jobs_se = c("Legitimate employed", "Under-the-table",
+cluster_labels_jobs_se = c("Under-the-table", "Legitimate employed",
     "Self-employed", "Unemployed")
-# cluster_levels_jobs_se  = cluster_labels_jobs_se
+# cluster_levels_jobs_se   = cluster_labels_jobs_se
 cluster_levels_jobs_se = c("Unemployed", "Self-employed",
                            "Under-the-table", "Legitimate employed")
 
@@ -434,11 +434,11 @@ add_notes_table(tcl,
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 
 # 4-cluster solution
-cluster_labels_job_crime = c("Employed", "Self-employed",
-    "Offenders", "Unemployed")
+cluster_labels_job_crime = c("Employed", "Unemployed",
+    "Self-employed", "Offenders")
+# cluster_labels_job_crime = cluster_levels_job_crime
 cluster_levels_job_crime = c("Unemployed", "Offenders",
     "Self-employed", "Employed")
-
 
 cl_job_crime_em_se_4 = create_clusters(seq_data_job_crime_em_se,
     nclusters = 4,
