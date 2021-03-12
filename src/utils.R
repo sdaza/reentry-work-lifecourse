@@ -144,13 +144,32 @@ create_sequences = function(data, seq_variable, seq_labels = NULL, colors = NULL
 }
 
 
+tranSequence = function(sequence, covs = NULL) {
+    o = data.table(sequence)
+    o[, id := 1:.N]
+    o = melt(o, id.vars = "id", variable.name = "time", value.name = "state")
+    vars = c("time", "state")
+    o[, (vars) := lapply(.SD, as.numeric), .SDcols = vars]
+    o[, state := state + 1]
+    setorderv(o, c("id", "time"))
+    print(msm::statetable.msm(state, id, data = o))
+    if (!is.null(covs)) { o = merge(o, covs, by = "id", all.x = TRUE) }
+    return(o)
+}
+
+
 create_clusters = function(seq_data, method = "HAM", norm_distance = "auto",
-                           nclusters = 2:5,
+                           nclusters = 2:5, multichannel = FALSE,
                            cluster_labels = NULL,
                            cluster_levels = NULL) {
 
     list_clusters = list()
-    distance = seqdist(seq_data, method = method, norm = norm_distance)
+
+    if (multichannel == FALSE) {
+        distance = seqdist(seq_data, method = method, norm = norm_distance)
+    } else {
+        distance = seqdistmc(channels = seq_data, method = method)
+    }
 
     for (i in nclusters) {
         assign(paste0("c", i), wcKMedoids(distance,
@@ -231,4 +250,176 @@ add_notes_table = function(tab, caption, label, align,
 
     cat(ptcl, file = filename)
 }
+
+# proportion inference
+ciProp = function(dat, variable, sample = 1000, remove_missing = TRUE) {
+
+    # total
+    v = dat[[variable]]
+    if (remove_missing == TRUE) v = na.omit(v)
+
+    m = NULL
+    for (i in 1:sample) {
+        vs = sample(v, length(v), replace = TRUE)
+        m = c(m, mean(vs))
+    }
+
+    bm = mean(m)
+    lo = quantile(m, 0.025)
+    hi = quantile(m, 0.975)
+    vt = c(bm, lo, hi)
+    names(vt) = c("est", "lo", "up")
+    vt
+}
+
+ciPropGroup = function(dat, variable, sample = 1000, remove_missing = TRUE, groupv = NULL, orderv = NULL, 
+    varlabel = NULL, test = TRUE, format = "%#.2f") {
+
+    results = list()
+    results[["Total"]] = ciProp(dat, variable, sample, remove_missing)
+
+    p = 1.0
+
+    if (!is.null(groupv)) {
+        lgroups = unique(as.character(groupv))
+        dat[, cluster := groupv]
+        if (test == TRUE) {
+            p = kruskal.test(get(variable) ~ as.factor(cluster), data = dat)$p.value
+        }
+        start = ifelse(p <= 0.05, "*", "")
+        for (i in seq_along(lgroups)) {
+            vg = dat[cluster == lgroups[i]]
+            results[[lgroups[i]]] = ciProp(vg, variable, sample, remove_missing)
+        }
+        out = data.table(do.call(rbind, results), keep.rownames = TRUE)
+        if (!is.null(orderv)) out = out[order(match(rn, orderv))]
+    }
+
+    out[, Est := paste0(sprintf(format, est), " (", sprintf(format, lo), ", ", sprintf(format, up), ")")]
+    out[, Variable := ifelse(!is.null(varlabel), paste0(varlabel, start), paste0(variable, start))]
+    out = dcast(out[, .(Variable, rn, Est)], Variable ~ rn, value.var = "Est")
+    if (!is.null(orderv)) out = out[, c("Variable", orderv), with = FALSE]
+    out
+}
+
+
+transMat = function(seq_data, labels = NULL, sample = 1000, states = NULL, columns = 1:12, format = "%#.2f") {
+
+    d = data.table::copy(seq_data[, lapply(.SD, function(x) as.numeric(as.character(x))), .SDcols = columns])
+    d[, id := 1:.N]
+    tm = list()
+    for (i in 1:sample) {
+        s = data.table::copy(d[sample(.N, nrow(d), replace = TRUE)])
+        seq = suppressMessages(seqdef(s, columns))
+        tseq = suppressMessages(seqtrate(seq, sel.states = states))
+        if (!is.null(labels)) { rownames(tseq) = labels; colnames(tseq) = labels } 
+        tm[[i]] = tseq
+    }
+
+    m = apply(simplify2array(tm), 1:2, mean)
+    mm = cbind(expand.grid(dimnames(m)), est = as.vector(m))
+    lo = apply(simplify2array(tm), 1:2, quantile, prob = 0.025)
+    mlo = cbind(expand.grid(dimnames(lo)), lo = as.vector(lo))
+    up = apply(simplify2array(tm), 1:2, quantile, prob = 0.975)
+    mup = cbind(expand.grid(dimnames(up)), up = as.vector(up))
+    mseq = data.table(Reduce(function(x,y) merge(x = x, y = y, by = c("Var1", "Var2")), 
+        list(mm, mlo, mup)))
+
+    if (!is.null(labels)) mseq = mseq[order(match(Var1, labels), match(Var2, labels))]
+    mseq[, Transition := paste0(Var1, " -> ", Var2)]
+    mseq[, Est := paste0(sprintf(format, est), " (", sprintf('%#.2f', lo), ", ", sprintf('%#.2f', up), ")")]
+
+    mseq[, .(Transition, Est)]
+}
+ 
+
+transMatGroup = function(seq, groupv = NULL, slabels = NULL, glabels = NULL, sample = 1000, states = NULL, columns = 1:12) {
+
+    results = list()
+    print("Running total")
+    d = data.table(seq)
+    t = transMat(d, labels = slabels, states = states, sample = sample)
+    setnames(t, "Est", "Total")
+    transition_order = t$Transition
+    results[["total"]] = t
+    d[, cluster := groupv]
+
+    if (!is.null(groupv)) {
+        groups = as.character(unique(groupv))
+        for (i in seq_along(groups)) {
+            print(paste0("Running group ", groups[i]))
+            td = data.table::copy(d[cluster == groups[i]])
+            tm = transMat(td, labels = slabels, states = states, sample = sample, columns = columns)
+            setnames(tm, "Est", groups[i])
+            results[[groups[i]]] = tm
+        }
+    }
+    tab = Reduce(function(...) merge(..., all = TRUE, by = "Transition"), results)
+    tab = tab[order(match(Transition, transition_order))]
+    if (!is.null(groupv)) tab[, c("Transition", "Total", glabels), with = FALSE]
+}
+
+
+timeSpent = function(seq, states = NULL, labels = NULL, sample = 1000, columns = 1:12, prop = TRUE, format = "%#.2f") {
+
+    d = seq[, lapply(.SD, function(x) as.numeric(as.character(x))), .SDcols = columns]
+    if (is.null(states)) { states = as.character(unique(unlist(d))) } else { states = as.character(states)}
+    d[, id := 1:.N]
+
+    tm = list()
+    for (i in 1:sample) {
+        s = data.table::copy(d[sample(.N, nrow(d), replace = TRUE)])
+        seq = suppressMessages(seqdef(s, columns))
+        time = seqmeant(seq, prop = prop, serr = FALSE)[, 1]
+        if (length(time) < length(states)) {
+            miss = which(!states %in% names(time))
+            for (k in miss) {
+                time[states[k]] = 0.0
+                time = time[order(states)]
+            }
+        }
+        if (!is.null(labels)) { names(time) = labels }
+        tm[[i]] = time
+    }
+    m = apply(simplify2array(tm), 1, mean)
+    lo = apply(simplify2array(tm), 1, quantile, prob = 0.025)
+    up = apply(simplify2array(tm), 1, quantile, prob = 0.975)
+
+    out = data.table(est = m, lo = lo, up = up)
+    if (!is.null(labels)) { out[, State := labels ]} else { out[, State := names(m)] }
+    out[, Est := paste0(sprintf(format, est), " (", sprintf('%#.2f', lo), ", ", sprintf('%#.2f', up), ")")]
+    out = out[, .(State, Est)]
+    out
+
+}
+
+
+timeSpentGroup = function(seq, groupv = NULL, glabels = NULL, slabels = NULL,
+    sample = 1000, states = NULL, prop =  TRUE, columns = 1:12) {
+
+    results = list()
+    print("Running total")
+    k = data.table(seq)
+    tt = timeSpent(k, labels = slabels, states = states, prop = prop, sample = sample, columns = columns)
+    setnames(tt, "Est", "Total")
+    results[["total"]] = tt
+
+    k[, cluster := groupv]
+
+    if (!is.null(groupv)) {
+        groups = as.character(unique(groupv))
+        for (i in seq_along(groups)) {
+            print(paste0("Running group ", groups[i]))
+            td = data.table::copy(k[cluster == groups[i]])
+            tx = timeSpent(td, labels = slabels, states = states, sample = sample, prop = prop, columns = columns)
+            setnames(tx, "Est", groups[i])
+            results[[groups[i]]] = tx
+
+        }
+    }
+    tab = Reduce(function(...) merge(..., all = TRUE, by = "State"), results)
+    if (!is.null(groupv)) tab = tab[, c("State", "Total", glabels), with = FALSE]
+    tab[order(match(State, slabels))]
+}
+
 
