@@ -272,7 +272,7 @@ ciProp = function(dat, variable, sample = 1000, remove_missing = TRUE) {
     vt
 }
 
-ciPropGroup = function(dat, variable, sample = 1000, remove_missing = TRUE, groupv = NULL, orderv = NULL, 
+ciPropGroup = function(dat, variable, sample = 1000, remove_missing = TRUE, groupv = NULL, glabels = NULL, 
     varlabel = NULL, test = TRUE, format = "%#.2f") {
 
     results = list()
@@ -292,13 +292,12 @@ ciPropGroup = function(dat, variable, sample = 1000, remove_missing = TRUE, grou
             results[[lgroups[i]]] = ciProp(vg, variable, sample, remove_missing)
         }
         out = data.table(do.call(rbind, results), keep.rownames = TRUE)
-        if (!is.null(orderv)) out = out[order(match(rn, orderv))]
     }
 
     out[, Est := paste0(sprintf(format, est), " (", sprintf(format, lo), ", ", sprintf(format, up), ")")]
     out[, Variable := ifelse(!is.null(varlabel), paste0(varlabel, start), paste0(variable, start))]
     out = dcast(out[, .(Variable, rn, Est)], Variable ~ rn, value.var = "Est")
-    if (!is.null(orderv)) out = out[, c("Variable", orderv), with = FALSE]
+    if (!is.null(glabels)) out = out[, c("Variable", c("Total", glabels)), with = FALSE]
     out
 }
 
@@ -375,7 +374,7 @@ timeSpent = function(seq, states = NULL, labels = NULL, sample = 1000, columns =
             miss = which(!states %in% names(time))
             for (k in miss) {
                 time[states[k]] = 0.0
-                time = time[order(states)]
+                time = time[order(names(time))]
             }
         }
         if (!is.null(labels)) { names(time) = labels }

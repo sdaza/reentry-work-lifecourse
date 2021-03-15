@@ -31,6 +31,14 @@ setkey(bs, reg_folio)
 bs = lclass[bs]
 table(bs$class)
 
+# work expectanction
+bs[!is.na(eaf_14), work_importance := ifelse(eaf_14 %in% 1:2, 1, 0)]
+table(bs$work_importance)
+bs[!is.na(spg_7_8), work_hardness := ifelse(spg_7_8 %in% 3:4, 1, 0)]
+
+table(bs$work_importance)
+table(bs$work_hardness)
+
 # age
 setnames(bs, 'hdv_1', 'age')
 
@@ -207,7 +215,8 @@ bs[, family_conflict := scale(apply(.SD, 1, mean, na.rm = TRUE)),
 
 # select columns
 bs = bs[, .(reg_folio, class, age, edu,
-            only_primary, h_school, any_previous_work,
+            only_primary, h_school, any_previous_work, 
+            work_importance, work_hardness,
             nchildren, any_children, crime, early_crime,
             self_efficacy, desire_change, previous_partner,
             previous_sentences, mental_health,

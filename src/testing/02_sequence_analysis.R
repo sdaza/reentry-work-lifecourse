@@ -83,6 +83,7 @@ table(wave_summary[sequence_waves %in% c("001", "011", "101", "111") &
 # 2 = cuenta propia formal
 # 3 = dependiente informal
 # 4 = dependiente formal
+
 work_columns = paste0("trabajo", 1:7, "_oc")
 
 # get max of jobs by time
@@ -128,8 +129,6 @@ table(dat$anyjob)
 dat[is.na(days_month), days_month := 0]
 length(unique(dat[month_index == 12 & (days_month <= 15), reg_folio])) /
     length(unique(dat[month_index == 12, reg_folio]))
-
-# create sequences 
 
 # prison
 seq_data_prison = create_sequences(
@@ -200,12 +199,12 @@ add_notes_table(jobsearched.trate ,
     comment = comment,
     filename = paste0(path_paper, "output/transition_rates_job_search.tex")
 )
-file.copy(paste0(path_paper, "output/transition_rates_job_search.tex"),
-    paste0(path_manuscript, "tables/"), recursive = TRUE)
+
 t = seqmeant(seq_data_search, prop = TRUE, serr = TRUE)
 
 # any job
 prop.table(table(dat[, getMax(anyjob), reg_folio]$V1))
+
 seq_data_anyjob = create_sequences(
     data = dat,
     seq_variable = "anyjob",
@@ -234,9 +233,6 @@ savepdf(paste0(path_paper, "output/seq_dist_jobs"))
         horiz = TRUE,  bty = "n", inset = c(0, 2), xpd = TRUE,
         text.width=c(0,0.7,1.3,1.5,1.5))
 dev.off()
-file.copy(paste0(path_paper, "output/seq_dist_jobs.pdf"),
-    paste0(path_manuscript, "figures/"), recursive = TRUE)
-
 
 # jobs (3 categories)
 dat[job == 1, independent_job := 1]
@@ -252,6 +248,32 @@ seq_data_jobs_se = create_sequences(
     seq_variable = "independent_job",
     seq_labels = labs,
     colors = colors5[2:5]
+)
+
+# transition rates table
+states_in = paste0("> ", c("None", "Self-employed",
+              "Employed U",
+              "Employed L"))
+states_out = paste0(c("None", "Self-employed",
+              "Employed U",
+              "Employed L"), " >")
+
+selfemployed.trate = seqtrate(seq_data_jobs_se)
+rownames(selfemployed.trate) = states_out
+colnames(selfemployed.trate) = states_in
+
+caption = paste0("Transition rates between job categories of women inmates \\newline
+    during the first 12 months following their release (N = ", n, " $\\times$ 11)")
+label = "tab:transition_rates_jobs"
+comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. U = Under-the-table, L = Legitimate."
+
+add_notes_table(selfemployed.trate,
+    align = "lcccc",
+    tabcolsep = 10,
+    caption = caption,
+    label = label,
+    comment = comment,
+    filename = paste0(path_paper, "output/transition_rates_job.tex")
 )
 
 # compare clusters solutions
@@ -275,8 +297,6 @@ add_notes_table(tcl,
     comment = comment,
     filename = paste0(path_paper, "output/cluster_quality_job.tex")
 )
-file.copy(paste0(path_paper, "output/cluster_quality_job.tex"),
-    paste0(path_manuscript, "tables/"), recursive = TRUE)
 
 # 4 clusters seems the best solution
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
@@ -298,27 +318,28 @@ create_plots(seq_data_jobs_se, cl_jobs_se_4[[1]],
     paste0(path_paper, "output/seq_job_se_4_clusters"),
     order = "sql"
 )
-file.copy(paste0(path_paper, "output/seq_job_se_4_clusters.pdf"),
-    paste0(path_manuscript, "figures/"), recursive = TRUE)
 
-# create big table with stats across clusters
+
+# create table with stats across clusters
 cluster_vector = cl_jobs_se_4[["c4"]][[1]]
+gorderv = c("Total", "Unemployed", "Self-employed", "Under-the-table", "Employed")
 slabels =  c("None", "Self-employed", "Under-the-table", "Employed")
 glabels = c("Unemployed", "Self-employed", "Under-the-table", "Employed")
+
 table(cluster_vector)
 
 vars = c("age", "h_school", "nchildren", "mental_health", "drug_depabuse", "early_crime", 
     "previous_sentences", "sentence_length", "any_previous_work", "work_importance", "work_hardness", 
     "anyjobsearch", "anyprison")
 labs = c("Age", "High school", "Num. of children", "Mental health problems", "Dependence / drug abuse", 
-    "Crime before age 15", "Num. previous sentences", "Sentence length", "Worked before prison", "Importance of finding a job", 
-    "Expected hardness of finding job",
+    "Crime before age 15", "Num. previous sentences", "Sentence length", "Worked before prison", 
+    "Importance to find a job", "Expected hardness to find a job",
     "Searched jobs during follow-up", "Prison during follow-up")
 descriptives = list()
 for (i in seq_along(vars)) {
     myformat = ifelse(vars[i] == "age", "%#.1f", "%#.2f")
     descriptives[[i]] = ciPropGroup(covs, vars[i], varlabel = labs[i], groupv = cluster_vector, 
-        glabels = glabels, test = TRUE, format = myformat)
+        orderv = gorderv, test = TRUE, format = myformat)
 }
 
 descriptives = rbindlist(descriptives)
@@ -451,16 +472,14 @@ seq_data_jobs_crime = create_sequences(data = dat,
 
 savepdf(paste0(path_paper, "output/seq_dist_jobs_crime"),
     mar = c(3.3,3.6,2.5,1.1), mgp = c(2.7,0.45,0))
-    seqdplot(seq_data_jobs_crime,
-        with.legend = FALSE, ltext = labs)
-    mtext(side = 1, line = 2.3, "Months", font = 1, cex = 1)
-    legend(1.2, 1.15, legend = labs, cex = 0.7, pch = 15, col = colors8,
-        ncol = 4, bty = "n", inset = c(0, 2), xpd = TRUE,
-        text.width=c(0,0.7,0.7,0.7,1.7, 1.7,1.9,1.9)
-        )
+seqdplot(seq_data_jobs_crime,
+    with.legend = FALSE, ltext = labs)
+mtext(side = 1, line = 2.3, "Months", font = 1, cex = 1)
+legend(1.2, 1.15, legend = labs, cex = 0.7, pch = 15, col = colors8,
+    ncol = 4, bty = "n", inset = c(0, 2), xpd = TRUE,
+    text.width=c(0,0.7,0.7,0.7,1.7, 1.7,1.9,1.9)
+    )
 dev.off()
-file.copy(paste0(path_paper, "output/seq_dist_jobs_crime.pdf"),
-    paste0(path_manuscript, "figures/"), recursive = TRUE)
 
 seqstatf(seq_data_jobs_crime)
 seqstatd(seq_data_jobs_crime)
@@ -499,6 +518,7 @@ table(dat$work_crime_em_se)
 
 labs = c("None", "Crime", "Self-employed", "Self-employed-Crime",
     "Employed", "Employed-Crime")
+
 seq_data_job_crime_em_se = create_sequences(
     data = dat,
     seq_variable = "work_crime_em_se",
@@ -528,8 +548,6 @@ add_notes_table(tcl,
                 comment = comment,
                 filename = paste0(path_paper, "output/cluster_quality_job_crime.tex")
                 )
-file.copy(paste0(path_paper, "output/cluster_quality_job_crime.tex"),
-    paste0(path_manuscript, "tables/"), recursive = TRUE)
 
 # 4 clusters seems the best solution
 plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
@@ -537,7 +555,7 @@ plot(benchmark_clusters, stat = c("ASW", "HG", "PBC"))
 # 4-cluster solution
 cluster_labels_job_crime = c("Employed", "Self-employed", "Unemployed", "Offenders")
 # cluster_labels_job_crime = cluster_levels_job_crime
-cluster_levels_job_crime = c("Unemployed", "Offenders", "Self-employed", "Employed")
+cluster_levels_job_crime = c("Unemployed", "Offenders", "Self-employed", "Employed", )
 
 cl_job_crime_em_se_4 = create_clusters(seq_data_job_crime_em_se,
     nclusters = 4,
@@ -555,7 +573,6 @@ file.copy(paste0(path_paper, "output/seq_job_crime_em_se_4_clusters.pdf"),
 
 cluster_membership[, cluster_job_crime_em_se_4 := cl_job_crime_em_se_4[["c4"]][[1]]]
 
-# explore clusters 
 # select_cluster = "Legitimate employed"
 select_cluster = "Self-employed"
 select_cluster = "Employed"
@@ -574,16 +591,14 @@ glabels = c("Unemployed", "Offenders", "Self-employed", "Employed")
 
 descriptives = list()
 vars = c("age", "h_school", "nchildren", "mental_health", "drug_depabuse", "early_crime", 
-    "previous_sentences", "sentence_length", "any_previous_work", "work_importance", "work_hardness", 
-    "anyjobsearch", "anyprison")
+    "previous_sentences", "sentence_length", "any_previous_work", "anyjobsearch", "anyprison")
 labs = c("Age", "High school", "Num. of children", "Mental health problems", "Dependence / drug abuse", 
-    "Crime before age 15", "Num. previous sentences", "Sentence length", "Worked before prison", "Importance of finding a job", 
-    "Expected hardness of finding job",
+    "Crime before age 15", "Num. previous sentences", "Sentence length", "Worked before prison", 
     "Searched jobs during follow-up", "Prison during follow-up")
 for (i in seq_along(vars)) {
     myformat = ifelse(vars[i] == "age", "%#.1f", "%#.2f")
     descriptives[[i]] = ciPropGroup(covs, vars[i], varlabel = labs[i], groupv = cluster_vector, 
-        glabels = glabels, test = TRUE, format = myformat)
+        orderv = gorderv, test = TRUE, format = myformat)
 }
 
 descriptives = rbindlist(descriptives)
@@ -615,14 +630,16 @@ out3 = gsub("(.+\\\\\\\\\\s\\n\\s+\\\\hline\\n)(.+)(\\s+\\\\hline\\n.+)", "\\2",
 # table list
 tab = list()
 tab[[1]] =  "
-\\renewcommand{\\arraystretch}{0.8}
-\\begin{scriptsize}
-{\\setlength{\\tabcolsep}{2pt}
-\\begin{longtable}{llllll} 
-\\caption{Descriptives and transition rates by job-crime clusters}%
- \\label{tab:job_crime_clusters}\\\\
+\\begin{table}[htp]
+\\scriptsize
+\\caption{Descriptives and transition rates by job-crime clusters}
+\\label{tab:job_clusters}
+\\setlength{\\tabcolsep}{5pt}
+\\renewcommand{\\arraystretch}{1.3}
+\\begin{threeparttable}
+\\begin{tabular}{llllll}
 \\hline
-\\addlinespace
+\\addlinespace[8pt]
 & & \\multicolumn{4}{c}{Work-crime clusters} \\\\
 \\addlinespace
 \\cmidrule(lr){3-6} 
@@ -653,18 +670,21 @@ tab[[7]] = "\\addlinespace
 \\addlinespace
 \\hline
 \\addlinespace
-\\multicolumn{6}{l}{* Statistically significant differences across clusters (p-value $<$ 0.05). 95\\% bootstrapped confidence intervals in parenthesis (1000 samples).} \\\\
-\\multicolumn{6}{l}{Transition rates are the probability to switch at a given position from state $s_i$ to state $s_j$.}
-\\end{longtable}
-}
-\\end{scriptsize}
+\\end{tabular}
+\\begin{tablenotes}
+\\scriptsize
+    \\item * Statistically significant differences across clusters (p-value $<$ 0.05). 95\\% bootstrapped confidence intervals in parenthesis (1000 samples).
+    \\item Transition rates are the probability to switch at a given position from state $s_i$ to state $s_j$.
+\\end{tablenotes}
+\\end{threeparttable}
+\\end{table}
 "
 
 cat(paste(tab, collapse = ''), file = paste0(path_paper, "output/tab_cluster_jobs_crime.tex"))
 file.copy(paste0(path_paper, "output/tab_cluster_jobs_crime.tex"),
   paste0(path_manuscript,  "tables/"), recursive = TRUE)
 
-# exploring clusters
+
 setnames(temp, names(temp), paste0("c", 1:6))
 temp = temp[, lapply(.SD, function(x) ifelse(x > 0, 1, 0))]
 temp[, otherthan := apply(.SD, 1, sum), .SDcols = paste0("c", c(2))]
@@ -683,6 +703,27 @@ by(seq_data_job_crime_em_se, cluster_membership$cluster_job_crime_em_se_4,
 by(seq_data_search, cluster_membership$cluster_job_crime_em_se_4,
     seqtrate)[[select_cluster]]
 
+# transition rates table
+states_in = paste0("> ", c("None", "Crime","SE", "SE-Crime", "E", "E-Crime"))
+states_out = paste0(c("None", "Crime","SE", "SE-Crime", "E", "E-Crime"), " >")
+
+jobs_crime.trate = seqtrate(seq_data_job_crime_em_se)
+rownames(jobs_crime.trate) = states_out
+colnames(jobs_crime.trate) = states_in
+
+caption = paste0("Transition rates between job and crime of women inmates \\newline
+    during the first 12 months following their release (N = ", n, " $\\times$ 11)")
+label = "tab:transition_rates_jobs_crime"
+comment = "Probability to switch at a given position from state $s_i$ to state $s_j$. SE = Self-employed, E = Employed."
+
+add_notes_table(jobs_crime.trate,
+    align = "lcccccc",
+    tabcolsep = 10,
+    caption = caption,
+    label = label,
+    comment = comment,
+    filename = paste0(path_paper, "output/transition_rates_job_crime.tex")
+)
 
 # any job and crime
 dat[, anyjob_crime := anyjob * 10 + crime]
